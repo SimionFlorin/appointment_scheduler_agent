@@ -39,7 +39,7 @@ export default function OnboardingPage() {
         body: JSON.stringify({ profession, businessName, phone, address, timezone }),
       });
       if (!res.ok) throw new Error("Failed to complete onboarding");
-      await update();
+      await update({});
       router.push("/dashboard");
     } catch (e) {
       console.error(e);
