@@ -1,23 +1,9 @@
 import NextAuth from "next-auth";
-import Google from "next-auth/providers/google";
 import { prisma } from "./prisma";
+import { authConfig } from "./auth.config";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      authorization: {
-        params: {
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code",
-          scope:
-            "openid email profile https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly",
-        },
-      },
-    }),
-  ],
+  ...authConfig,
   callbacks: {
     async signIn({ user, account }) {
       if (!account || !user.email) return false;
@@ -50,39 +36,47 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return true;
     },
 
-    async jwt({ token, account }) {
+    async jwt({ token, account, trigger }) {
+      // On sign-in: store googleId and fetch user data from DB
       if (account) {
         token.googleId = account.providerAccountId;
+
+        const dbUser = await prisma.user.findUnique({
+          where: { googleId: account.providerAccountId },
+          select: { id: true, profession: true, onboardingDone: true },
+        });
+        if (dbUser) {
+          token.dbUserId = dbUser.id;
+          token.profession = dbUser.profession;
+          token.onboardingDone = dbUser.onboardingDone;
+        }
       }
+
+      // On explicit update() call: re-fetch from DB to pick up changes
+      if (trigger === "update" && token.googleId) {
+        const dbUser = await prisma.user.findUnique({
+          where: { googleId: token.googleId as string },
+          select: { id: true, profession: true, onboardingDone: true },
+        });
+        if (dbUser) {
+          token.dbUserId = dbUser.id;
+          token.profession = dbUser.profession;
+          token.onboardingDone = dbUser.onboardingDone;
+        }
+      }
+
       return token;
     },
 
     async session({ session, token }) {
-      if (token.googleId) {
-        const dbUser = await prisma.user.findUnique({
-          where: { googleId: token.googleId as string },
-          select: {
-            id: true,
-            profession: true,
-            onboardingDone: true,
-            image: true,
-          },
-        });
-        if (dbUser) {
-          session.user.id = dbUser.id;
-          (session.user as unknown as Record<string, unknown>).profession =
-            dbUser.profession;
-          (session.user as unknown as Record<string, unknown>).onboardingDone =
-            dbUser.onboardingDone;
-        }
+      if (token.dbUserId) {
+        session.user.id = token.dbUserId as string;
       }
+      (session.user as unknown as Record<string, unknown>).profession =
+        token.profession ?? null;
+      (session.user as unknown as Record<string, unknown>).onboardingDone =
+        token.onboardingDone ?? false;
       return session;
     },
-  },
-  pages: {
-    signIn: "/login",
-  },
-  session: {
-    strategy: "jwt",
   },
 });

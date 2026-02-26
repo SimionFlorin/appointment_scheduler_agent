@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { CalendarCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +19,7 @@ type Step = "profession" | "business" | "done";
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { update } = useSession();
   const [step, setStep] = useState<Step>("profession");
   const [profession, setProfession] = useState<string>("");
   const [businessName, setBusinessName] = useState("");
@@ -37,6 +39,7 @@ export default function OnboardingPage() {
         body: JSON.stringify({ profession, businessName, phone, address, timezone }),
       });
       if (!res.ok) throw new Error("Failed to complete onboarding");
+      await update();
       router.push("/dashboard");
     } catch (e) {
       console.error(e);
