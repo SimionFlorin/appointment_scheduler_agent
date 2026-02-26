@@ -43,6 +43,7 @@ interface WhatsAppStatus {
 export default function SettingsPage() {
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [waStatus, setWaStatus] = useState<WhatsAppStatus | null>(null);
+  const [aiProvider, setAiProvider] = useState<"GEMINI" | "OPENAI">("GEMINI");
   const [loading, setLoading] = useState(true);
 
   // WhatsApp form
@@ -58,9 +59,11 @@ export default function SettingsPage() {
     Promise.all([
       fetch("/api/settings/profile").then((r) => r.json()),
       fetch("/api/whatsapp/connect").then((r) => r.json()),
-    ]).then(([profileData, waData]) => {
+      fetch("/api/settings/ai-provider").then((r) => r.json()),
+    ]).then(([profileData, waData, aiData]) => {
       setProfile(profileData.profile || null);
       setWaStatus(waData.config || null);
+      setAiProvider(aiData.aiProvider || "GEMINI");
       setLoading(false);
     });
   }, []);
@@ -102,6 +105,16 @@ export default function SettingsPage() {
     }
   }
 
+  async function saveAIProvider() {
+    const res = await fetch("/api/settings/ai-provider", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aiProvider }),
+    });
+    if (res.ok) toast.success("AI provider updated");
+    else toast.error("Failed to update AI provider");
+  }
+
   function updateHours(day: string, field: "Start" | "End", value: string) {
     if (!profile) return;
     setProfile({ ...profile, [`${day}${field}`]: value || null });
@@ -125,6 +138,7 @@ export default function SettingsPage() {
       <Tabs defaultValue="whatsapp">
         <TabsList>
           <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
+          <TabsTrigger value="ai">AI Provider</TabsTrigger>
           <TabsTrigger value="profile">Business Profile</TabsTrigger>
           <TabsTrigger value="hours">Business Hours</TabsTrigger>
         </TabsList>
@@ -244,6 +258,50 @@ export default function SettingsPage() {
 
               <Button onClick={saveWhatsApp} className="w-full">
                 {waStatus?.isActive ? "Update" : "Connect"} WhatsApp
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* AI Provider */}
+        <TabsContent value="ai" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>AI Provider</CardTitle>
+              <CardDescription>
+                Choose which AI model to use for your scheduling assistant
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-3">
+                <Button
+                  variant={aiProvider === "GEMINI" ? "default" : "outline"}
+                  onClick={() => setAiProvider("GEMINI")}
+                  className="flex-1"
+                >
+                  Google Gemini
+                </Button>
+                <Button
+                  variant={aiProvider === "OPENAI" ? "default" : "outline"}
+                  onClick={() => setAiProvider("OPENAI")}
+                  className="flex-1"
+                >
+                  OpenAI (GPT-4)
+                </Button>
+              </div>
+              <div className="text-sm text-muted-foreground space-y-2">
+                <p>
+                  <strong>Google Gemini:</strong> Fast and efficient, optimized for conversation. Free tier available.
+                </p>
+                <p>
+                  <strong>OpenAI GPT-4:</strong> Highly capable model with excellent reasoning. Requires OpenAI API key.
+                </p>
+                <p className="text-xs mt-2">
+                  Note: Make sure you have configured the corresponding API key in your environment variables.
+                </p>
+              </div>
+              <Button onClick={saveAIProvider} className="w-full">
+                Save AI Provider
               </Button>
             </CardContent>
           </Card>

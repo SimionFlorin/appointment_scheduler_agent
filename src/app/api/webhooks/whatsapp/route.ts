@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { processWhatsAppMessage } from "@/lib/gemini-agent";
+import { processWhatsAppMessage } from "@/lib/ai-agent";
 import { parseMetaWebhookPayload } from "@/lib/whatsapp/meta-provider";
 import { parseTwilioWebhookPayload } from "@/lib/whatsapp/twilio-provider";
 
