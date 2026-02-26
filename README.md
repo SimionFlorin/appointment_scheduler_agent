@@ -120,7 +120,7 @@ src/
     auth.ts                — Auth.js config with Google Calendar scopes
     prisma.ts              — Prisma client singleton
     google-calendar.ts     — Calendar availability & event management
-    gemini-agent.ts        — Gemini function-calling scheduling agent
+    ai-agent.ts            — Multi-provider AI agent (Gemini/OpenAI) with function calling
     defaults.ts            — Default services per profession
     whatsapp/
       index.ts             — Unified WhatsApp interface

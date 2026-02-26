@@ -1,7 +1,6 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { ChatOpenAI } from "@langchain/openai";
-import { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
+import { HumanMessage, AIMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
 import { prisma } from "./prisma";
@@ -9,16 +8,18 @@ import { getAvailableSlots, createCalendarEvent, deleteCalendarEvent } from "./g
 import { getWhatsAppProvider } from "./whatsapp";
 import { ConversationMessage } from "@/types";
 
-function createAIModel(provider: "GEMINI" | "OPENAI"): BaseChatModel {
+type AIModel = ChatGoogleGenerativeAI | ChatOpenAI;
+
+function createAIModel(provider: "GEMINI" | "OPENAI"): AIModel {
   if (provider === "OPENAI") {
     return new ChatOpenAI({
-      modelName: "gpt-4o",
+      model: "gpt-4o",
       apiKey: process.env.OPENAI_API_KEY,
       temperature: 0.7,
     });
   } else {
     return new ChatGoogleGenerativeAI({
-      modelName: "gemini-2.0-flash",
+      model: "gemini-2.0-flash-exp",
       apiKey: process.env.GEMINI_API_KEY,
       temperature: 0.7,
     });
@@ -221,7 +222,7 @@ export async function processWhatsAppMessage(
   const timezone = user.businessProfile.timezone;
   const aiProvider = user.aiProvider || "GEMINI";
 
-  let conversation = await prisma.conversation.findUnique({
+  const conversation = await prisma.conversation.findUnique({
     where: {
       userId_customerPhone: { userId, customerPhone },
     },
@@ -249,7 +250,7 @@ export async function processWhatsAppMessage(
   const tools = createSchedulingTools(userId, timezone);
   const modelWithTools = model.bindTools(tools);
 
-  const messages = [
+  const messages: (SystemMessage | HumanMessage | AIMessage | ToolMessage)[] = [
     new SystemMessage(systemPrompt),
     ...recentMessages.slice(0, -1).map((msg) =>
       msg.role === "customer"
@@ -260,7 +261,7 @@ export async function processWhatsAppMessage(
   ];
 
   let response = await modelWithTools.invoke(messages);
-  const allMessages = [...messages, response];
+  const allMessages: (SystemMessage | HumanMessage | AIMessage | ToolMessage)[] = [...messages, response];
 
   while (response.tool_calls && response.tool_calls.length > 0) {
     for (const toolCall of response.tool_calls) {
@@ -270,12 +271,13 @@ export async function processWhatsAppMessage(
       }
 
       const toolResult = await tool.invoke(toolCall.args);
-      allMessages.push({
-        role: "tool",
-        content: toolResult,
-        tool_call_id: toolCall.id,
-        name: toolCall.name,
-      } as never);
+      allMessages.push(
+        new ToolMessage({
+          content: toolResult,
+          tool_call_id: toolCall.id || "",
+          name: toolCall.name,
+        })
+      );
     }
 
     response = await modelWithTools.invoke(allMessages);
