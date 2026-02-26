@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Profession {
+  DENTIST
+  MECHANIC
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum WhatsAppProvider {
+  META
+  TWILIO
+}
+
+model User {
+  id              String    @id @default(cuid())
+  googleId        String    @unique
+  email           String    @unique
+  name            String
+  image           String?
+  profession      Profession?
+  onboardingDone  Boolean   @default(false)
+
+  googleAccessToken  String?
+  googleRefreshToken String?
+  googleTokenExpiry  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessProfile BusinessProfile?
+  services        Service[]
+  appointments    Appointment[]
+  conversations   Conversation[]
+  whatsappConfig  WhatsAppConfig?
+}
+
+model BusinessProfile {
+  id        String @id @default(cuid())
+  userId    String @unique
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  businessName String
+  phone        String?
+  address      String?
+  timezone     String  @default("America/New_York")
+
+  mondayStart    String? @default("09:00")
+  mondayEnd      String? @default("17:00")
+  tuesdayStart   String? @default("09:00")
+  tuesdayEnd     String? @default("17:00")
+  wednesdayStart String? @default("09:00")
+  wednesdayEnd   String? @default("17:00")
+  thursdayStart  String? @default("09:00")
+  thursdayEnd    String? @default("17:00")
+  fridayStart    String? @default("09:00")
+  fridayEnd      String? @default("17:00")
+  saturdayStart  String?
+  saturdayEnd    String?
+  sundayStart    String?
+  sundayEnd      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Service {
+  id          String @id @default(cuid())
+  userId      String
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  price       Float
+  duration    Int // minutes
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  appointments Appointment[]
+
+  @@index([userId])
+}
+
+model WhatsAppConfig {
+  id       String           @id @default(cuid())
+  userId   String           @unique
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider WhatsAppProvider
+
+  // Meta Cloud API fields
+  wabaId         String?
+  phoneNumberId  String?
+  metaAccessToken String?
+
+  // Twilio fields
+  twilioAccountSid String?
+  twilioAuthToken  String?
+  twilioPhoneNumber String?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Appointment {
+  id        String            @id @default(cuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId String
+  service   Service           @relation(fields: [serviceId], references: [id])
+
+  customerName  String
+  customerPhone String
+  startTime     DateTime
+  endTime       DateTime
+  status        AppointmentStatus @default(SCHEDULED)
+  notes         String?
+
+  googleCalendarEventId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([customerPhone])
+  @@index([startTime])
+}
+
+model Conversation {
+  id        String @id @default(cuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  customerPhone String
+  customerName  String?
+  messages      Json   @default("[]") // Array of {role, content, timestamp}
+
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, customerPhone])
+  @@index([userId])
+}
