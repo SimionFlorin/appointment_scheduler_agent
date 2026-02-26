@@ -26,6 +26,11 @@ enum WhatsAppProvider {
   TWILIO
 }
 
+enum AIProvider {
+  GEMINI
+  OPENAI
+}
+
 model User {
   id              String    @id @default(cuid())
   googleId        String    @unique
@@ -34,6 +39,7 @@ model User {
   image           String?
   profession      Profession?
   onboardingDone  Boolean   @default(false)
+  aiProvider      AIProvider @default(GEMINI)
 
   googleAccessToken  String?
   googleRefreshToken String?
