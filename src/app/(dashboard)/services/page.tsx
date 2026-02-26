@@ -105,13 +105,23 @@ export default function ServicesPage() {
   }
 
   async function toggleActive(service: Service) {
+    const newIsActive = !service.isActive;
+
+    setServices((prev) =>
+      prev.map((s) => (s.id === service.id ? { ...s, isActive: newIsActive } : s))
+    );
+
     const res = await fetch("/api/services", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: service.id, isActive: !service.isActive }),
+      body: JSON.stringify({ id: service.id, isActive: newIsActive }),
     });
-    if (res.ok) {
-      loadServices();
+
+    if (!res.ok) {
+      setServices((prev) =>
+        prev.map((s) => (s.id === service.id ? { ...s, isActive: !newIsActive } : s))
+      );
+      toast.error("Failed to update service");
     }
   }
 

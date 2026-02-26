@@ -6,7 +6,7 @@ const { auth } = NextAuth(authConfig);
 
 const publicPaths = ["/", "/login", "/api/auth", "/api/webhooks"];
 
-export default auth((req) => {
+export const proxy = auth((req) => {
   const { pathname } = req.nextUrl;
 
   const isPublic = publicPaths.some(
