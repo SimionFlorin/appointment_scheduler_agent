@@ -4,9 +4,9 @@ import { NextResponse } from "next/server";
 
 const { auth } = NextAuth(authConfig);
 
-const publicPaths = ["/", "/login", "/api/auth", "/api/webhooks"];
+const publicPaths = ["/", "/login", "/api/auth", "/api/webhooks", "/privacy-policy"];
 
-export const proxy = auth((req) => {
+export default auth((req) => {
   const { pathname } = req.nextUrl;
 
   const isPublic = publicPaths.some(

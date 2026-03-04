@@ -207,6 +207,11 @@ export default function LandingPage() {
       <footer className="border-t py-8">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
           <p>ScheduleAI &mdash; AI-powered appointment scheduling</p>
+          <div className="mt-4 flex items-center justify-center gap-4">
+            <Link href="/privacy-policy" className="hover:text-foreground transition-colors">
+              Privacy Policy
+            </Link>
+          </div>
         </div>
       </footer>
     </div>
