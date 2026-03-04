@@ -49,7 +49,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
           <div className="flex items-center gap-6">
             <Link href="/dashboard" className="flex items-center gap-2">
               <CalendarCheck className="h-6 w-6 text-primary" />
-              <span className="font-bold hidden sm:inline">ScheduleAI</span>
+              <span className="font-bold hidden sm:inline">BookMe AI | Your AI Receptionist That Never Sleeps</span>
             </Link>
             <nav className="flex items-center gap-1">
               {navItems.map((item) => {

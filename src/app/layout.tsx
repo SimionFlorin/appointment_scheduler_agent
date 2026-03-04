@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ScheduleAI - AI-Powered Appointment Scheduling",
+  title: "BookMe AI | Your AI Receptionist That Never Sleeps",
   description:
     "Let AI handle your appointment scheduling via WhatsApp. Built for dentists, mechanics, and service professionals.",
 };

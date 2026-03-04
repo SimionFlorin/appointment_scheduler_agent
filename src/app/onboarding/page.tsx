@@ -55,7 +55,7 @@ export default function OnboardingPage() {
         <CardHeader className="text-center space-y-2">
           <div className="mx-auto flex items-center gap-2">
             <CalendarCheck className="h-7 w-7 text-primary" />
-            <span className="text-xl font-bold">ScheduleAI</span>
+            <span className="text-xl font-bold">BookMe AI | Your AI Receptionist That Never Sleeps</span>
           </div>
           <CardTitle>Set up your account</CardTitle>
           <CardDescription>
