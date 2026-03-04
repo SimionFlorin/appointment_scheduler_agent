@@ -411,7 +411,7 @@ export default function PrivacyPolicyPage() {
             </p>
             <div className="bg-muted p-6 rounded-lg">
               <p className="font-medium mb-2">BookMe AI | Your AI Receptionist That Never Sleeps</p>
-              <p className="text-muted-foreground">Email: privacy@scheduleai.app</p>
+              <p className="text-muted-foreground">Email: contact@mythril-tech.com</p>
               <p className="text-muted-foreground">
                 For data subject requests (access, deletion, correction), please 
                 include &quot;Privacy Request&quot; in your email subject line.
