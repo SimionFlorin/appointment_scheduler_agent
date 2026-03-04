@@ -16,7 +16,7 @@ export default function LandingPage() {
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <CalendarCheck className="h-7 w-7 text-primary" />
-            <span className="text-xl font-bold">ScheduleAI</span>
+            <span className="text-xl font-bold">BookMe AI | Your AI Receptionist That Never Sleeps</span>
           </div>
           <Link href="/login">
             <Button>Sign In</Button>
@@ -206,7 +206,7 @@ export default function LandingPage() {
 
       <footer className="border-t py-8">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>ScheduleAI &mdash; AI-powered appointment scheduling</p>
+          <p>BookMe AI | Your AI Receptionist That Never Sleeps &mdash; AI-powered appointment scheduling</p>
           <div className="mt-4 flex items-center justify-center gap-4">
             <Link href="/privacy-policy" className="hover:text-foreground transition-colors">
               Privacy Policy

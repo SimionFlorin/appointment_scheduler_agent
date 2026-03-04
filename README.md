@@ -1,4 +1,4 @@
-# ScheduleAI - AI-Powered Appointment Scheduling
+# BookMe AI | Your AI Receptionist That Never Sleeps
 
 An AI receptionist that handles appointment booking via WhatsApp, powered by Google Gemini. Built for dentists, mechanics, and service professionals.
 

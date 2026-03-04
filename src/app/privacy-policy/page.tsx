@@ -9,7 +9,7 @@ export default function PrivacyPolicyPage() {
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2">
             <CalendarCheck className="h-7 w-7 text-primary" />
-            <span className="text-xl font-bold">ScheduleAI</span>
+            <span className="text-xl font-bold">BookMe AI | Your AI Receptionist That Never Sleeps</span>
           </Link>
           <Link href="/login">
             <Button>Sign In</Button>
@@ -27,7 +27,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-2xl font-semibold mb-4">1. Introduction</h2>
             <p className="text-muted-foreground leading-relaxed">
-              ScheduleAI (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) provides an AI-powered appointment 
+              BookMe AI | Your AI Receptionist That Never Sleeps (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) provides an AI-powered appointment 
               scheduling service that integrates with WhatsApp and Google Calendar. 
               This Privacy Policy explains how we collect, use, disclose, and safeguard 
               your information when you use our service.
@@ -336,7 +336,7 @@ export default function PrivacyPolicyPage() {
               9. Google API Services User Data Policy
             </h2>
             <p className="text-muted-foreground mb-4">
-              ScheduleAI&apos;s use of information received from Google APIs adheres 
+              BookMe AI | Your AI Receptionist That Never Sleeps&apos;s use of information received from Google APIs adheres 
               to the{" "}
               <a
                 href="https://developers.google.com/terms/api-services-user-data-policy"
@@ -410,8 +410,8 @@ export default function PrivacyPolicyPage() {
               Policy or our data practices, please contact us at:
             </p>
             <div className="bg-muted p-6 rounded-lg">
-              <p className="font-medium mb-2">ScheduleAI</p>
-              <p className="text-muted-foreground">Email: privacy@scheduleai.app</p>
+              <p className="font-medium mb-2">BookMe AI | Your AI Receptionist That Never Sleeps</p>
+              <p className="text-muted-foreground">Email: contact@mythril-tech.com</p>
               <p className="text-muted-foreground">
                 For data subject requests (access, deletion, correction), please 
                 include &quot;Privacy Request&quot; in your email subject line.
@@ -475,7 +475,7 @@ export default function PrivacyPolicyPage() {
 
       <footer className="border-t py-8 mt-12">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>ScheduleAI &mdash; AI-powered appointment scheduling</p>
+          <p>BookMe AI | Your AI Receptionist That Never Sleeps &mdash; AI-powered appointment scheduling</p>
         </div>
       </footer>
     </div>
