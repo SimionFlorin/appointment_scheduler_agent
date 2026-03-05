@@ -18,6 +18,11 @@ export const metadata: Metadata = {
   title: "BookMe AI | Your AI Receptionist That Never Sleeps",
   description:
     "Let AI handle your appointment scheduling via WhatsApp. Built for dentists, mechanics, and service professionals.",
+  icons: {
+    icon: [{ url: "/Logo_05_03_2025.svg", type: "image/svg+xml" }],
+    shortcut: ["/Logo_05_03_2025.svg"],
+    apple: ["/app_logo_05_03_2025.png"],
+  },
 };
 
 export default function RootLayout({
