@@ -19,8 +19,8 @@ export const metadata: Metadata = {
   description:
     "Let AI handle your appointment scheduling via WhatsApp. Built for dentists, mechanics, and service professionals.",
   icons: {
-    icon: [{ url: "/Logo_05_03_2025.svg", type: "image/svg+xml" }],
-    shortcut: ["/Logo_05_03_2025.svg"],
+    icon: ["/app_logo_05_03_2025.png"],
+    shortcut: ["/app_logo_05_03_2025.png"],
     apple: ["/app_logo_05_03_2025.png"],
   },
 };
