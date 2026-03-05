@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 const { auth } = NextAuth(authConfig);
 
-const publicPaths = ["/", "/login", "/api/auth", "/api/webhooks", "/privacy-policy"];
+const publicPaths = ["/", "/login", "/api/auth", "/api/webhooks", "/privacy-policy", "/terms-of-service", "/sitemap.xml"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
@@ -34,5 +34,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon\\.svg|.*\\.png$|.*\\.svg$|sitemap\\.xsl$).*)"],
 };

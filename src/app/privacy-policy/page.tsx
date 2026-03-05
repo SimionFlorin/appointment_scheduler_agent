@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CalendarCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SiteFooter } from "@/components/site-footer";
 
 export default function PrivacyPolicyPage() {
   return (
@@ -473,11 +474,7 @@ export default function PrivacyPolicyPage() {
         </div>
       </main>
 
-      <footer className="border-t py-8 mt-12">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>BookMe AI | Your AI Receptionist That Never Sleeps &mdash; AI-powered appointment scheduling</p>
-        </div>
-      </footer>
+      <SiteFooter className="mt-12" />
     </div>
   );
 }
