@@ -23,6 +23,13 @@ export function SiteFooter({ className }: { className?: string }) {
           >
             Terms of Service
           </Link>
+          <span>|</span>
+          <Link
+            href="/data-deletion"
+            className="hover:text-foreground transition-colors"
+          >
+            Data Deletion
+          </Link>
         </div>
       </div>
     </footer>
