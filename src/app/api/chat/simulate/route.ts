@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { processWhatsAppMessage } from "@/lib/gemini-agent";
+import { processWhatsAppMessage } from "@/lib/ai-agent";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
