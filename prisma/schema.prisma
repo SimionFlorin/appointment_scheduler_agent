@@ -131,6 +131,7 @@ model Appointment {
   endTime       DateTime
   status        AppointmentStatus @default(SCHEDULED)
   notes         String?
+  isTest        Boolean           @default(false)
 
   googleCalendarEventId String?
 
@@ -150,6 +151,7 @@ model Conversation {
   customerPhone String
   customerName  String?
   messages      Json   @default("[]") // Array of {role, content, timestamp}
+  isTest        Boolean  @default(false)
 
   lastMessageAt DateTime @default(now())
   createdAt     DateTime @default(now())

@@ -130,7 +130,8 @@ async function executeFunctionCall(
   functionName: string,
   args: Record<string, string>,
   userId: string,
-  timezone: string
+  timezone: string,
+  options?: { simulate?: boolean }
 ): Promise<string> {
   switch (functionName) {
     case "get_services": {
@@ -160,12 +161,16 @@ async function executeFunctionCall(
       });
       if (!service) return JSON.stringify({ error: "Service not found" });
 
+      const isTest = !!options?.simulate;
       const startTime = new Date(datetime);
       const endTime = new Date(startTime.getTime() + service.duration * 60000);
+      const summary = isTest
+        ? `(Test Appointment) ${service.name} - ${customer_name}`
+        : `${service.name} - ${customer_name}`;
 
       const calendarEvent = await createCalendarEvent(userId, {
-        summary: `${service.name} - ${customer_name}`,
-        description: `Service: ${service.name}\nCustomer: ${customer_name}\nPhone: ${customer_phone}\nPrice: $${service.price}`,
+        summary,
+        description: `Service: ${service.name}\nCustomer: ${customer_name}\nPhone: ${customer_phone}\nPrice: $${service.price}${isTest ? "\n\n⚠ This is a test appointment created via the Chat Simulator." : ""}`,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
         attendeePhone: customer_phone,
@@ -180,6 +185,7 @@ async function executeFunctionCall(
           customerPhone: customer_phone,
           startTime,
           endTime,
+          isTest,
           googleCalendarEventId: calendarEvent.id || undefined,
         },
       });
@@ -242,7 +248,8 @@ async function executeFunctionCall(
 export async function processWhatsAppMessage(
   userId: string,
   customerPhone: string,
-  messageBody: string
+  messageBody: string,
+  options?: { simulate?: boolean }
 ): Promise<string> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -252,8 +259,12 @@ export async function processWhatsAppMessage(
     },
   });
 
-  if (!user || !user.businessProfile || !user.whatsappConfig) {
+  if (!user || !user.businessProfile) {
     throw new Error("User not configured properly");
+  }
+
+  if (!options?.simulate && !user.whatsappConfig) {
+    throw new Error("WhatsApp not configured");
   }
 
   const timezone = user.businessProfile.timezone;
@@ -310,7 +321,8 @@ export async function processWhatsAppMessage(
       functionName,
       functionArgs,
       userId,
-      timezone
+      timezone,
+      options
     );
 
     result = await chat.sendMessage([
@@ -354,23 +366,25 @@ export async function processWhatsAppMessage(
         customerPhone,
         messages: messagesJson,
         lastMessageAt: new Date(),
+        isTest: !!options?.simulate,
       },
     });
   }
 
-  // Send reply via WhatsApp
-  const whatsapp = getWhatsAppProvider(user.whatsappConfig.provider, {
-    phoneNumberId: user.whatsappConfig.phoneNumberId || "",
-    metaAccessToken: user.whatsappConfig.metaAccessToken || "",
-    twilioAccountSid: user.whatsappConfig.twilioAccountSid || "",
-    twilioAuthToken: user.whatsappConfig.twilioAuthToken || "",
-    twilioPhoneNumber: user.whatsappConfig.twilioPhoneNumber || "",
-  });
+  if (!options?.simulate && user.whatsappConfig) {
+    const whatsapp = getWhatsAppProvider(user.whatsappConfig.provider, {
+      phoneNumberId: user.whatsappConfig.phoneNumberId || "",
+      metaAccessToken: user.whatsappConfig.metaAccessToken || "",
+      twilioAccountSid: user.whatsappConfig.twilioAccountSid || "",
+      twilioAuthToken: user.whatsappConfig.twilioAuthToken || "",
+      twilioPhoneNumber: user.whatsappConfig.twilioPhoneNumber || "",
+    });
 
-  await whatsapp.sendMessage({
-    to: customerPhone,
-    body: assistantMessage,
-  });
+    await whatsapp.sendMessage({
+      to: customerPhone,
+      body: assistantMessage,
+    });
+  }
 
   return assistantMessage;
 }

@@ -10,6 +10,7 @@ import {
   Calendar,
   Settings,
   MessageSquare,
+  MessagesSquare,
   LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ const navItems = [
   { href: "/services", label: "Services", icon: Wrench },
   { href: "/appointments", label: "Appointments", icon: Calendar },
   { href: "/conversations", label: "Conversations", icon: MessageSquare },
+  { href: "/chat-simulator", label: "Simulator", icon: MessagesSquare },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

@@ -55,6 +55,10 @@ export default function SettingsPage() {
   const [waStatus, setWaStatus] = useState<WhatsAppStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Test message
+  const [testPhone, setTestPhone] = useState("");
+  const [testSending, setTestSending] = useState(false);
+
   // WhatsApp form
   const [waProvider, setWaProvider] = useState<"META" | "TWILIO">("META");
   const [wabaId, setWabaId] = useState("");
@@ -163,18 +167,59 @@ export default function SettingsPage() {
         {/* WhatsApp Connection */}
         <TabsContent value="whatsapp" className="space-y-4">
           {waStatus?.isActive && (
-            <Card className="border-green-200 bg-green-50">
-              <CardContent className="py-4 flex items-center gap-3">
-                <Badge className="bg-green-600">Connected</Badge>
-                <span className="text-sm text-green-800">
-                  WhatsApp is connected via{" "}
-                  <strong>{waStatus.provider}</strong>
-                  {waStatus.provider === "META"
-                    ? ` (Phone Number ID: ${waStatus.phoneNumberId})`
-                    : ` (${waStatus.twilioPhoneNumber})`}
-                </span>
-              </CardContent>
-            </Card>
+            <>
+              <Card className="border-green-200 bg-green-50">
+                <CardContent className="py-4 flex items-center gap-3">
+                  <Badge className="bg-green-600">Connected</Badge>
+                  <span className="text-sm text-green-800">
+                    WhatsApp is connected via{" "}
+                    <strong>{waStatus.provider}</strong>
+                    {waStatus.provider === "META"
+                      ? ` (Phone Number ID: ${waStatus.phoneNumberId})`
+                      : ` (${waStatus.twilioPhoneNumber})`}
+                  </span>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Send Test Message</CardTitle>
+                  <CardDescription>
+                    Verify your WhatsApp connection by sending a test message
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex gap-3">
+                  <Input
+                    placeholder="+1234567890"
+                    value={testPhone}
+                    onChange={(e) => setTestPhone(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    disabled={!testPhone || testSending}
+                    onClick={async () => {
+                      setTestSending(true);
+                      try {
+                        const res = await fetch("/api/whatsapp/test-send", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ phoneNumber: testPhone }),
+                        });
+                        const data = await res.json();
+                        if (res.ok) toast.success("Test message sent!");
+                        else toast.error(data.error || "Failed to send");
+                      } catch {
+                        toast.error("Network error");
+                      } finally {
+                        setTestSending(false);
+                      }
+                    }}
+                  >
+                    {testSending ? "Sending..." : "Send Test"}
+                  </Button>
+                </CardContent>
+              </Card>
+            </>
           )}
 
           <Card>
