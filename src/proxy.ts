@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 const { auth } = NextAuth(authConfig);
 
-const publicPaths = ["/", "/login", "/api/auth", "/api/webhooks", "/privacy-policy"];
+const publicPaths = ["/", "/login", "/api/auth", "/api/webhooks", "/privacy-policy", "/terms-of-service"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
