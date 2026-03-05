@@ -24,12 +24,14 @@ function getModel(provider: string) {
       return new ChatOpenAI({
         model: "gpt-5-mini",
         apiKey: process.env.OPENAI_API_KEY,
+        maxTokens: 1024,
       });
     case "GEMINI":
     default:
       return new ChatGoogleGenerativeAI({
         model: "gemini-3.1-flash-lite-preview",
         apiKey: process.env.GEMINI_API_KEY,
+        maxOutputTokens: 1024,
       });
   }
 }
@@ -314,7 +316,7 @@ export async function processWhatsAppMessage(
     timestamp: new Date().toISOString(),
   });
 
-  const recentMessages = existingMessages.slice(-20);
+  const recentMessages = existingMessages.slice(-10);
 
   // Build LangChain message history
   const chatHistory: BaseMessage[] = recentMessages.slice(0, -1).map((msg) =>
@@ -343,30 +345,28 @@ export async function processWhatsAppMessage(
   while (response.tool_calls && response.tool_calls.length > 0) {
     messages.push(response);
 
-    for (const toolCall of response.tool_calls) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const matchedTool = tools.find((t) => t.name === toolCall.name) as any;
-      if (matchedTool) {
-        const result = await matchedTool.invoke(toolCall.args);
-        messages.push(
-          new ToolMessage({
+    const toolMessages = await Promise.all(
+      response.tool_calls.map(async (toolCall) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const matchedTool = tools.find((t) => t.name === toolCall.name) as any;
+        if (matchedTool) {
+          const result = await matchedTool.invoke(toolCall.args);
+          return new ToolMessage({
             content: typeof result === "string" ? result : JSON.stringify(result),
             tool_call_id: toolCall.id!,
             name: toolCall.name,
-          })
-        );
-      } else {
-        messages.push(
-          new ToolMessage({
-            content: JSON.stringify({
-              error: `Unknown function: ${toolCall.name}`,
-            }),
-            tool_call_id: toolCall.id!,
-            name: toolCall.name,
-          })
-        );
-      }
-    }
+          });
+        }
+        return new ToolMessage({
+          content: JSON.stringify({
+            error: `Unknown function: ${toolCall.name}`,
+          }),
+          tool_call_id: toolCall.id!,
+          name: toolCall.name,
+        });
+      })
+    );
+    messages.push(...toolMessages);
 
     response = await model.invoke(messages);
   }
