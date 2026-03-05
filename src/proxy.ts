@@ -4,18 +4,25 @@ import { NextResponse } from "next/server";
 
 const { auth } = NextAuth(authConfig);
 
-const publicPaths = ["/", "/login", "/api/auth", "/api/webhooks", "/privacy-policy", "/terms-of-service", "/sitemap.xml"];
+const authRequiredPaths = ["/dashboard", "/services", "/appointments", "/conversations", "/settings", "/onboarding"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
 
-  const isPublic = publicPaths.some(
-    (p) => pathname === p || pathname.startsWith(p + "/")
-  );
+  const needsAuth =
+    authRequiredPaths.some(
+      (p) => pathname === p || pathname.startsWith(p + "/")
+    ) ||
+    (pathname.startsWith("/api") &&
+      !pathname.startsWith("/api/auth") &&
+      !pathname.startsWith("/api/webhooks"));
 
-  if (isPublic) return NextResponse.next();
+  if (!needsAuth) return NextResponse.next();
 
   if (!req.auth) {
+    if (pathname.startsWith("/api")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);

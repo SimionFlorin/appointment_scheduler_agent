@@ -5,6 +5,7 @@ const staticPages = [
   { path: "/login", changefreq: "monthly", priority: "0.8" },
   { path: "/privacy-policy", changefreq: "monthly", priority: "0.3" },
   { path: "/terms-of-service", changefreq: "monthly", priority: "0.3" },
+  { path: "/data-deletion", changefreq: "monthly", priority: "0.3" },
 ];
 
 export async function GET() {
