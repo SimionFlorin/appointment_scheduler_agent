@@ -131,6 +131,7 @@ model Appointment {
   endTime       DateTime
   status        AppointmentStatus @default(SCHEDULED)
   notes         String?
+  isTest        Boolean           @default(false)
 
   googleCalendarEventId String?
 

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { RotateCcw, Send } from "lucide-react";
+import { RotateCcw, Send, Trash2 } from "lucide-react";
 
 interface Message {
   role: "customer" | "assistant";
@@ -21,6 +21,7 @@ export default function ChatSimulatorPage() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [deletingTests, setDeletingTests] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -85,17 +86,40 @@ export default function ChatSimulatorPage() {
     }
   }
 
+  async function deleteTestAppointments() {
+    setDeletingTests(true);
+    try {
+      const res = await fetch("/api/appointments/test", { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(
+          data.deleted > 0
+            ? `Deleted ${data.deleted} test appointment${data.deleted > 1 ? "s" : ""} (and their calendar events)`
+            : "No test appointments to delete"
+        );
+      } else {
+        toast.error(data.error || "Failed to delete");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setDeletingTests(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Chat Simulator</h1>
         <p className="text-muted-foreground">
-          Test the AI scheduling agent without WhatsApp. Messages are processed
-          through the same Gemini pipeline but never sent externally.
+          You are chatting as a <strong>customer</strong> of your business.
+          Type messages below to test how the AI scheduling agent responds.
+          Appointments booked here are marked as test and will appear in your
+          Google Calendar with a "(Test Appointment)" prefix.
         </p>
       </div>
 
-      <div className="flex items-end gap-3">
+      <div className="flex items-end gap-3 flex-wrap">
         <div className="space-y-1.5">
           <Label htmlFor="sim-phone" className="text-xs">
             Simulated customer phone
@@ -115,7 +139,17 @@ export default function ChatSimulatorPage() {
           disabled={resetting || messages.length === 0}
         >
           <RotateCcw className="h-4 w-4 mr-1.5" />
-          {resetting ? "Resetting..." : "Reset"}
+          {resetting ? "Resetting..." : "Reset Conversation"}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={deleteTestAppointments}
+          disabled={deletingTests}
+          className="text-destructive hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4 mr-1.5" />
+          {deletingTests ? "Deleting..." : "Delete All Test Appointments"}
         </Button>
       </div>
 
