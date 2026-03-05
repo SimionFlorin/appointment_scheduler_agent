@@ -1,95 +1,38 @@
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { ChatOpenAI } from "@langchain/openai";
 import {
-  GoogleGenerativeAI,
-  SchemaType,
-  type FunctionDeclaration,
-} from "@google/generative-ai";
+  SystemMessage,
+  HumanMessage,
+  AIMessage,
+  ToolMessage,
+  type BaseMessage,
+} from "@langchain/core/messages";
+import { tool } from "@langchain/core/tools";
+import { z } from "zod";
 import { prisma } from "./prisma";
-import { getAvailableSlots, createCalendarEvent, deleteCalendarEvent } from "./google-calendar";
+import {
+  getAvailableSlots,
+  createCalendarEvent,
+  deleteCalendarEvent,
+} from "./google-calendar";
 import { getWhatsAppProvider } from "./whatsapp";
 import { ConversationMessage } from "@/types";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-
-const schedulingFunctions: FunctionDeclaration[] = [
-  {
-    name: "get_services",
-    description:
-      "Get the list of services offered by this business with their prices and durations",
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {},
-    },
-  },
-  {
-    name: "get_availability",
-    description:
-      "Check available appointment slots for a given date and service. Returns a list of available time slots.",
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        date: {
-          type: SchemaType.STRING,
-          description: "The date to check in YYYY-MM-DD format",
-        },
-        service_id: {
-          type: SchemaType.STRING,
-          description: "The ID of the service to check availability for",
-        },
-      },
-      required: ["date", "service_id"],
-    },
-  },
-  {
-    name: "book_appointment",
-    description:
-      "Book an appointment for a customer. Creates an event in Google Calendar.",
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        service_id: {
-          type: SchemaType.STRING,
-          description: "The ID of the service to book",
-        },
-        customer_name: {
-          type: SchemaType.STRING,
-          description: "The customer's name",
-        },
-        customer_phone: {
-          type: SchemaType.STRING,
-          description: "The customer's phone number",
-        },
-        datetime: {
-          type: SchemaType.STRING,
-          description:
-            "The appointment start time in ISO 8601 format (e.g. 2025-03-15T14:00:00)",
-        },
-      },
-      required: ["service_id", "customer_name", "customer_phone", "datetime"],
-    },
-  },
-  {
-    name: "cancel_appointment",
-    description: "Cancel an existing appointment by its ID",
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        appointment_id: {
-          type: SchemaType.STRING,
-          description: "The appointment ID to cancel",
-        },
-      },
-      required: ["appointment_id"],
-    },
-  },
-  {
-    name: "get_business_hours",
-    description: "Get the business hours for each day of the week",
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {},
-    },
-  },
-];
+function getModel(provider: string) {
+  switch (provider) {
+    case "OPENAI":
+      return new ChatOpenAI({
+        model: "gpt-4.1-nano",
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+    case "GEMINI":
+    default:
+      return new ChatGoogleGenerativeAI({
+        model: "gemini-3.1-flash-lite-preview",
+        apiKey: process.env.GEMINI_API_KEY,
+      });
+  }
+}
 
 function buildSystemPrompt(
   businessName: string,
@@ -126,36 +69,64 @@ Guidelines:
 - Format durations in human-readable form (e.g. "45 minutes", not "45 min").`;
 }
 
-async function executeFunctionCall(
-  functionName: string,
-  args: Record<string, string>,
+function createTools(
   userId: string,
   timezone: string,
   options?: { simulate?: boolean }
-): Promise<string> {
-  switch (functionName) {
-    case "get_services": {
+) {
+  const getServicesTool = tool(
+    async () => {
       const services = await prisma.service.findMany({
         where: { userId, isActive: true },
-        select: { id: true, name: true, description: true, price: true, duration: true },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          price: true,
+          duration: true,
+        },
       });
       return JSON.stringify(services);
+    },
+    {
+      name: "get_services",
+      description:
+        "Get the list of services offered by this business with their prices and durations",
+      schema: z.object({}),
     }
+  );
 
-    case "get_availability": {
-      const { date, service_id } = args;
+  const getAvailabilityTool = tool(
+    async ({ date, service_id }) => {
       const service = await prisma.service.findUnique({
         where: { id: service_id },
         select: { duration: true },
       });
       if (!service) return JSON.stringify({ error: "Service not found" });
 
-      const slots = await getAvailableSlots(userId, date, service.duration, timezone);
-      return JSON.stringify(slots.slice(0, 8)); // Limit to 8 slots for readability
+      const slots = await getAvailableSlots(
+        userId,
+        date,
+        service.duration,
+        timezone
+      );
+      return JSON.stringify(slots.slice(0, 8));
+    },
+    {
+      name: "get_availability",
+      description:
+        "Check available appointment slots for a given date and service. Returns a list of available time slots.",
+      schema: z.object({
+        date: z.string().describe("The date to check in YYYY-MM-DD format"),
+        service_id: z
+          .string()
+          .describe("The ID of the service to check availability for"),
+      }),
     }
+  );
 
-    case "book_appointment": {
-      const { service_id, customer_name, customer_phone, datetime } = args;
+  const bookAppointmentTool = tool(
+    async ({ service_id, customer_name, customer_phone, datetime }) => {
       const service = await prisma.service.findUnique({
         where: { id: service_id },
       });
@@ -198,18 +169,38 @@ async function executeFunctionCall(
         endTime: endTime.toISOString(),
         price: service.price,
       });
+    },
+    {
+      name: "book_appointment",
+      description:
+        "Book an appointment for a customer. Creates an event in Google Calendar.",
+      schema: z.object({
+        service_id: z.string().describe("The ID of the service to book"),
+        customer_name: z.string().describe("The customer's name"),
+        customer_phone: z.string().describe("The customer's phone number"),
+        datetime: z
+          .string()
+          .describe(
+            "The appointment start time in ISO 8601 format (e.g. 2025-03-15T14:00:00)"
+          ),
+      }),
     }
+  );
 
-    case "cancel_appointment": {
-      const { appointment_id } = args;
+  const cancelAppointmentTool = tool(
+    async ({ appointment_id }) => {
       const appointment = await prisma.appointment.findUnique({
         where: { id: appointment_id },
       });
-      if (!appointment) return JSON.stringify({ error: "Appointment not found" });
+      if (!appointment)
+        return JSON.stringify({ error: "Appointment not found" });
 
       if (appointment.googleCalendarEventId) {
         try {
-          await deleteCalendarEvent(userId, appointment.googleCalendarEventId);
+          await deleteCalendarEvent(
+            userId,
+            appointment.googleCalendarEventId
+          );
         } catch {
           // Calendar event may already be deleted
         }
@@ -220,29 +211,67 @@ async function executeFunctionCall(
         data: { status: "CANCELLED" },
       });
 
-      return JSON.stringify({ success: true, message: "Appointment cancelled" });
+      return JSON.stringify({
+        success: true,
+        message: "Appointment cancelled",
+      });
+    },
+    {
+      name: "cancel_appointment",
+      description: "Cancel an existing appointment by its ID",
+      schema: z.object({
+        appointment_id: z
+          .string()
+          .describe("The appointment ID to cancel"),
+      }),
     }
+  );
 
-    case "get_business_hours": {
+  const getBusinessHoursTool = tool(
+    async () => {
       const profile = await prisma.businessProfile.findUnique({
         where: { userId },
       });
-      if (!profile) return JSON.stringify({ error: "Business profile not found" });
+      if (!profile)
+        return JSON.stringify({ error: "Business profile not found" });
 
-      const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
-      const hours: Record<string, { open: string | null; close: string | null }> = {};
+      const days = [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+      ] as const;
+      const hours: Record<
+        string,
+        { open: string | null; close: string | null }
+      > = {};
       for (const day of days) {
         hours[day] = {
-          open: (profile[`${day}Start` as keyof typeof profile] as string) || null,
-          close: (profile[`${day}End` as keyof typeof profile] as string) || null,
+          open:
+            (profile[`${day}Start` as keyof typeof profile] as string) || null,
+          close:
+            (profile[`${day}End` as keyof typeof profile] as string) || null,
         };
       }
       return JSON.stringify(hours);
+    },
+    {
+      name: "get_business_hours",
+      description: "Get the business hours for each day of the week",
+      schema: z.object({}),
     }
+  );
 
-    default:
-      return JSON.stringify({ error: `Unknown function: ${functionName}` });
-  }
+  return [
+    getServicesTool,
+    getAvailabilityTool,
+    bookAppointmentTool,
+    cancelAppointmentTool,
+    getBusinessHoursTool,
+  ];
 }
 
 export async function processWhatsAppMessage(
@@ -269,7 +298,6 @@ export async function processWhatsAppMessage(
 
   const timezone = user.businessProfile.timezone;
 
-  // Load or create conversation
   let conversation = await prisma.conversation.findUnique({
     where: {
       userId_customerPhone: { userId, customerPhone },
@@ -280,67 +308,74 @@ export async function processWhatsAppMessage(
     ? (conversation.messages as unknown as ConversationMessage[])
     : [];
 
-  // Add the new customer message
   existingMessages.push({
     role: "customer",
     content: messageBody,
     timestamp: new Date().toISOString(),
   });
 
-  // Trim to last 20 messages for context window
   const recentMessages = existingMessages.slice(-20);
 
-  // Build conversation history for Gemini
-  const chatHistory = recentMessages.slice(0, -1).map((msg) => ({
-    role: msg.role === "customer" ? "user" as const : "model" as const,
-    parts: [{ text: msg.content }],
-  }));
+  // Build LangChain message history
+  const chatHistory: BaseMessage[] = recentMessages.slice(0, -1).map((msg) =>
+    msg.role === "customer"
+      ? new HumanMessage(msg.content)
+      : new AIMessage(msg.content)
+  );
 
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash",
-    systemInstruction: buildSystemPrompt(
-      user.businessProfile.businessName,
-      user.profession || "Service Provider",
-      timezone
+  const tools = createTools(userId, timezone, options);
+  const model = getModel(user.llmProvider).bindTools(tools);
+
+  const messages: BaseMessage[] = [
+    new SystemMessage(
+      buildSystemPrompt(
+        user.businessProfile.businessName,
+        user.profession || "Service Provider",
+        timezone
+      )
     ),
-    tools: [{ functionDeclarations: schedulingFunctions }],
-  });
+    ...chatHistory,
+    new HumanMessage(messageBody),
+  ];
 
-  const chat = model.startChat({ history: chatHistory });
+  let response = await model.invoke(messages);
 
-  let result = await chat.sendMessage(messageBody);
-  let response = result.response;
+  while (response.tool_calls && response.tool_calls.length > 0) {
+    messages.push(response);
 
-  // Handle function calls in a loop (Gemini may chain multiple calls)
-  while (response.candidates?.[0]?.content?.parts?.[0]?.functionCall) {
-    const functionCall = response.candidates[0].content.parts[0].functionCall;
-    const functionName = functionCall.name;
-    const functionArgs = (functionCall.args as Record<string, string>) || {};
+    for (const toolCall of response.tool_calls) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const matchedTool = tools.find((t) => t.name === toolCall.name) as any;
+      if (matchedTool) {
+        const result = await matchedTool.invoke(toolCall.args);
+        messages.push(
+          new ToolMessage({
+            content: typeof result === "string" ? result : JSON.stringify(result),
+            tool_call_id: toolCall.id!,
+            name: toolCall.name,
+          })
+        );
+      } else {
+        messages.push(
+          new ToolMessage({
+            content: JSON.stringify({
+              error: `Unknown function: ${toolCall.name}`,
+            }),
+            tool_call_id: toolCall.id!,
+            name: toolCall.name,
+          })
+        );
+      }
+    }
 
-    const functionResult = await executeFunctionCall(
-      functionName,
-      functionArgs,
-      userId,
-      timezone,
-      options
-    );
-
-    result = await chat.sendMessage([
-      {
-        functionResponse: {
-          name: functionName,
-          response: { result: functionResult },
-        },
-      },
-    ]);
-    response = result.response;
+    response = await model.invoke(messages);
   }
 
   const assistantMessage =
-    response.candidates?.[0]?.content?.parts?.[0]?.text ||
-    "I'm sorry, I couldn't process that. Could you try again?";
+    typeof response.content === "string" && response.content
+      ? response.content
+      : "I'm sorry, I couldn't process that. Could you try again?";
 
-  // Save to conversation
   recentMessages.push({
     role: "assistant",
     content: assistantMessage,

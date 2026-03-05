@@ -71,13 +71,19 @@ export default function SettingsPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
 
+  // AI Provider
+  const [aiProvider, setAiProvider] = useState<"GEMINI" | "OPENAI">("GEMINI");
+  const [aiProviderSaving, setAiProviderSaving] = useState(false);
+
   useEffect(() => {
     Promise.all([
       fetch("/api/settings/profile").then((r) => r.json()),
       fetch("/api/whatsapp/connect").then((r) => r.json()),
-    ]).then(([profileData, waData]) => {
+      fetch("/api/settings/ai-provider").then((r) => r.json()),
+    ]).then(([profileData, waData, aiData]) => {
       setProfile(profileData.profile || null);
       setWaStatus(waData.config || null);
+      setAiProvider(aiData.provider || "GEMINI");
       setLoading(false);
     });
   }, []);
@@ -122,6 +128,24 @@ export default function SettingsPage() {
   function updateHours(day: string, field: "Start" | "End", value: string) {
     if (!profile) return;
     setProfile({ ...profile, [`${day}${field}`]: value || null });
+  }
+
+  async function saveAiProvider(provider: "GEMINI" | "OPENAI") {
+    setAiProvider(provider);
+    setAiProviderSaving(true);
+    try {
+      const res = await fetch("/api/settings/ai-provider", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider }),
+      });
+      if (res.ok) toast.success("AI provider updated");
+      else toast.error("Failed to update AI provider");
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setAiProviderSaving(false);
+    }
   }
 
   async function handleDeleteAccount() {
@@ -421,8 +445,42 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Account / Delete */}
+        {/* Account */}
         <TabsContent value="account" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>AI Provider</CardTitle>
+              <CardDescription>
+                Choose which AI model powers your scheduling assistant
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-3">
+                <Button
+                  variant={aiProvider === "GEMINI" ? "default" : "outline"}
+                  onClick={() => saveAiProvider("GEMINI")}
+                  disabled={aiProviderSaving}
+                  className="flex-1"
+                >
+                  Gemini
+                </Button>
+                <Button
+                  variant={aiProvider === "OPENAI" ? "default" : "outline"}
+                  onClick={() => saveAiProvider("OPENAI")}
+                  disabled={aiProviderSaving}
+                  className="flex-1"
+                >
+                  OpenAI
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {aiProvider === "GEMINI"
+                  ? "Using Google Gemini 2.0 Flash. Requires GEMINI_API_KEY in your environment."
+                  : "Using OpenAI GPT-4o Mini. Requires OPENAI_API_KEY in your environment."}
+              </p>
+            </CardContent>
+          </Card>
+
           <Card className="border-destructive/50">
             <CardHeader>
               <CardTitle className="text-destructive">Delete Account</CardTitle>
