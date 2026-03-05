@@ -22,7 +22,7 @@ function getModel(provider: string) {
   switch (provider) {
     case "OPENAI":
       return new ChatOpenAI({
-        model: "gpt-4.1-nano",
+        model: "gpt-5-mini",
         apiKey: process.env.OPENAI_API_KEY,
       });
     case "GEMINI":

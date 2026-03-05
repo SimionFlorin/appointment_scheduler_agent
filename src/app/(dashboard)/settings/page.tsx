@@ -475,8 +475,8 @@ export default function SettingsPage() {
               </div>
               <p className="text-xs text-muted-foreground">
                 {aiProvider === "GEMINI"
-                  ? "Using Google Gemini 2.0 Flash. Requires GEMINI_API_KEY in your environment."
-                  : "Using OpenAI GPT-4o Mini. Requires OPENAI_API_KEY in your environment."}
+                  ? "Using Google Gemini 3.1 Flash Lite Preview. Requires GEMINI_API_KEY in your environment."
+                  : "Using OpenAI GPT-5 Mini. Requires OPENAI_API_KEY in your environment."}
               </p>
             </CardContent>
           </Card>
