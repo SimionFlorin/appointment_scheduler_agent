@@ -242,7 +242,8 @@ async function executeFunctionCall(
 export async function processWhatsAppMessage(
   userId: string,
   customerPhone: string,
-  messageBody: string
+  messageBody: string,
+  options?: { simulate?: boolean }
 ): Promise<string> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -252,8 +253,12 @@ export async function processWhatsAppMessage(
     },
   });
 
-  if (!user || !user.businessProfile || !user.whatsappConfig) {
+  if (!user || !user.businessProfile) {
     throw new Error("User not configured properly");
+  }
+
+  if (!options?.simulate && !user.whatsappConfig) {
+    throw new Error("WhatsApp not configured");
   }
 
   const timezone = user.businessProfile.timezone;
@@ -358,19 +363,20 @@ export async function processWhatsAppMessage(
     });
   }
 
-  // Send reply via WhatsApp
-  const whatsapp = getWhatsAppProvider(user.whatsappConfig.provider, {
-    phoneNumberId: user.whatsappConfig.phoneNumberId || "",
-    metaAccessToken: user.whatsappConfig.metaAccessToken || "",
-    twilioAccountSid: user.whatsappConfig.twilioAccountSid || "",
-    twilioAuthToken: user.whatsappConfig.twilioAuthToken || "",
-    twilioPhoneNumber: user.whatsappConfig.twilioPhoneNumber || "",
-  });
+  if (!options?.simulate && user.whatsappConfig) {
+    const whatsapp = getWhatsAppProvider(user.whatsappConfig.provider, {
+      phoneNumberId: user.whatsappConfig.phoneNumberId || "",
+      metaAccessToken: user.whatsappConfig.metaAccessToken || "",
+      twilioAccountSid: user.whatsappConfig.twilioAccountSid || "",
+      twilioAuthToken: user.whatsappConfig.twilioAuthToken || "",
+      twilioPhoneNumber: user.whatsappConfig.twilioPhoneNumber || "",
+    });
 
-  await whatsapp.sendMessage({
-    to: customerPhone,
-    body: assistantMessage,
-  });
+    await whatsapp.sendMessage({
+      to: customerPhone,
+      body: assistantMessage,
+    });
+  }
 
   return assistantMessage;
 }
