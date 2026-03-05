@@ -42,12 +42,21 @@ export async function DELETE(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
+  const all = searchParams.get("all") === "true";
   const customerPhone = searchParams.get("customerPhone") || "+0000000000";
+
+  if (all) {
+    const { count } = await prisma.conversation.deleteMany({
+      where: { userId: session.user.id, isTest: true },
+    });
+    return NextResponse.json({ success: true, deleted: count });
+  }
 
   await prisma.conversation.deleteMany({
     where: {
       userId: session.user.id,
       customerPhone,
+      isTest: true,
     },
   });
 

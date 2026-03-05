@@ -366,6 +366,7 @@ export async function processWhatsAppMessage(
         customerPhone,
         messages: messagesJson,
         lastMessageAt: new Date(),
+        isTest: !!options?.simulate,
       },
     });
   }

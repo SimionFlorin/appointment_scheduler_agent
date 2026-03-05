@@ -22,6 +22,7 @@ export default function ChatSimulatorPage() {
   const [sending, setSending] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [deletingTests, setDeletingTests] = useState(false);
+  const [deletingConvos, setDeletingConvos] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -107,6 +108,30 @@ export default function ChatSimulatorPage() {
     }
   }
 
+  async function deleteAllConversations() {
+    setDeletingConvos(true);
+    try {
+      const res = await fetch("/api/chat/simulate?all=true", {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMessages([]);
+        toast.success(
+          data.deleted > 0
+            ? `Deleted ${data.deleted} conversation${data.deleted > 1 ? "s" : ""}`
+            : "No conversations to delete"
+        );
+      } else {
+        toast.error(data.error || "Failed to delete");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setDeletingConvos(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -150,6 +175,16 @@ export default function ChatSimulatorPage() {
         >
           <Trash2 className="h-4 w-4 mr-1.5" />
           {deletingTests ? "Deleting..." : "Delete All Test Appointments"}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={deleteAllConversations}
+          disabled={deletingConvos}
+          className="text-destructive hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4 mr-1.5" />
+          {deletingConvos ? "Deleting..." : "Delete All Test Conversations"}
         </Button>
       </div>
 
