@@ -13,6 +13,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { signOut } from "next-auth/react";
 import { toast } from "sonner";
 
 const DAYS = [
@@ -53,6 +63,9 @@ export default function SettingsPage() {
   const [twilioSid, setTwilioSid] = useState("");
   const [twilioToken, setTwilioToken] = useState("");
   const [twilioPhone, setTwilioPhone] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -107,6 +120,23 @@ export default function SettingsPage() {
     setProfile({ ...profile, [`${day}${field}`]: value || null });
   }
 
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/settings/account", { method: "DELETE" });
+      if (res.ok) {
+        toast.success("Account deleted");
+        await signOut({ callbackUrl: "/" });
+      } else {
+        toast.error("Failed to delete account");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   if (loading) {
     return (
       <p className="text-center text-muted-foreground py-10">Loading...</p>
@@ -127,6 +157,7 @@ export default function SettingsPage() {
           <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
           <TabsTrigger value="profile">Business Profile</TabsTrigger>
           <TabsTrigger value="hours">Business Hours</TabsTrigger>
+          <TabsTrigger value="account">Account</TabsTrigger>
         </TabsList>
 
         {/* WhatsApp Connection */}
@@ -341,6 +372,78 @@ export default function SettingsPage() {
               <Button onClick={saveProfile} className="mt-4">
                 Save Hours
               </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Account / Delete */}
+        <TabsContent value="account" className="space-y-4">
+          <Card className="border-destructive/50">
+            <CardHeader>
+              <CardTitle className="text-destructive">Delete Account</CardTitle>
+              <CardDescription>
+                Permanently delete your account and all associated data. This
+                action cannot be undone.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive">
+                <p className="font-medium mb-2">
+                  Deleting your account will permanently remove:
+                </p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Your profile and business information</li>
+                  <li>All services you have created</li>
+                  <li>All appointment records</li>
+                  <li>All WhatsApp conversation history</li>
+                  <li>Your WhatsApp and Google Calendar connections</li>
+                </ul>
+              </div>
+              <Dialog
+                open={deleteDialogOpen}
+                onOpenChange={(open) => {
+                  setDeleteDialogOpen(open);
+                  if (!open) setDeleteConfirmText("");
+                }}
+              >
+                <DialogTrigger asChild>
+                  <Button variant="destructive">Delete Account</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Are you absolutely sure?</DialogTitle>
+                    <DialogDescription>
+                      This will permanently delete your account and remove all
+                      your data from our servers. This action is irreversible.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-2 py-2">
+                    <Label>
+                      Type <strong>DELETE</strong> to confirm
+                    </Label>
+                    <Input
+                      placeholder="DELETE"
+                      value={deleteConfirmText}
+                      onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setDeleteDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      disabled={deleteConfirmText !== "DELETE" || deleting}
+                      onClick={handleDeleteAccount}
+                    >
+                      {deleting ? "Deleting..." : "Permanently Delete Account"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
