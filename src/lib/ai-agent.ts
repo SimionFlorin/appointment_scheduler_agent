@@ -62,6 +62,7 @@ Guidelines:
 - Use get_availability to check open slots for their chosen date and service.
 - Present available times in a readable format (e.g. "2:00 PM", not ISO timestamps).
 - When they pick a time, ask for their name if you don't have it yet, then book using book_appointment.
+- IMPORTANT: You already have the customer's phone number from their messaging account. DO NOT ask for it.
 - For cancellations, ask for details to identify the appointment, then use cancel_appointment.
 - If no slots are available, suggest the next available day.
 - Never make up availability — always check with get_availability first.
@@ -73,6 +74,7 @@ Guidelines:
 
 function createTools(
   userId: string,
+  customerPhone: string,
   timezone: string,
   options?: { simulate?: boolean }
 ) {
@@ -128,7 +130,7 @@ function createTools(
   );
 
   const bookAppointmentTool = tool(
-    async ({ service_id, customer_name, customer_phone, datetime }) => {
+    async ({ service_id, customer_name, datetime }) => {
       const service = await prisma.service.findUnique({
         where: { id: service_id },
       });
@@ -143,10 +145,10 @@ function createTools(
 
       const calendarEvent = await createCalendarEvent(userId, {
         summary,
-        description: `Service: ${service.name}\nCustomer: ${customer_name}\nPhone: ${customer_phone}\nPrice: $${service.price}${isTest ? "\n\n⚠ This is a test appointment created via the Chat Simulator." : ""}`,
+        description: `Service: ${service.name}\nCustomer: ${customer_name}\nPhone: ${customerPhone}\nPrice: $${service.price}${isTest ? "\n\n⚠ This is a test appointment created via the Chat Simulator." : ""}`,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
-        attendeePhone: customer_phone,
+        attendeePhone: customerPhone,
         timezone,
       });
 
@@ -155,7 +157,7 @@ function createTools(
           userId,
           serviceId: service_id,
           customerName: customer_name,
-          customerPhone: customer_phone,
+          customerPhone: customerPhone,
           startTime,
           endTime,
           isTest,
@@ -175,11 +177,10 @@ function createTools(
     {
       name: "book_appointment",
       description:
-        "Book an appointment for a customer. Creates an event in Google Calendar.",
+        "Book an appointment for a customer. Creates an event in Google Calendar. The customer's phone number is already known from the messaging account.",
       schema: z.object({
         service_id: z.string().describe("The ID of the service to book"),
         customer_name: z.string().describe("The customer's name"),
-        customer_phone: z.string().describe("The customer's phone number"),
         datetime: z
           .string()
           .describe(
@@ -300,7 +301,7 @@ export async function processWhatsAppMessage(
 
   const timezone = user.businessProfile.timezone;
 
-  let conversation = await prisma.conversation.findUnique({
+  const conversation = await prisma.conversation.findUnique({
     where: {
       userId_customerPhone: { userId, customerPhone },
     },
@@ -325,7 +326,7 @@ export async function processWhatsAppMessage(
       : new AIMessage(msg.content)
   );
 
-  const tools = createTools(userId, timezone, options);
+  const tools = createTools(userId, customerPhone, timezone, options);
   const model = getModel(user.llmProvider).bindTools(tools);
 
   const messages: BaseMessage[] = [
