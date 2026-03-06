@@ -53,6 +53,19 @@ export default function RootLayout({
             gtag('config', 'G-0ZX0QSW8R9');
           `}
         </Script>
+        <Script
+          src="https://connect.facebook.net/en_US/sdk.js"
+          strategy="lazyOnload"
+          onLoad={() => {
+            (window as unknown as Record<string, unknown>).FB &&
+              (window as unknown as { FB: { init: (p: Record<string, unknown>) => void } }).FB.init({
+                appId: '1686323665822897',
+                autoLogAppEvents: true,
+                xfbml: true,
+                version: 'v25.0',
+              })
+          }}
+        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
