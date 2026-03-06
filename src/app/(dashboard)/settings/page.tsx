@@ -22,6 +22,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { signOut } from "next-auth/react";
 import { toast } from "sonner";
 
@@ -34,6 +41,25 @@ const DAYS = [
   "saturday",
   "sunday",
 ] as const;
+
+const TIMEZONES = [
+  { value: "America/New_York", label: "Eastern Time (ET)" },
+  { value: "America/Chicago", label: "Central Time (CT)" },
+  { value: "America/Denver", label: "Mountain Time (MT)" },
+  { value: "America/Phoenix", label: "Mountain Time - Arizona (no DST)" },
+  { value: "America/Los_Angeles", label: "Pacific Time (PT)" },
+  { value: "America/Anchorage", label: "Alaska Time (AKT)" },
+  { value: "Pacific/Honolulu", label: "Hawaii Time (HT)" },
+  { value: "America/Toronto", label: "Toronto (ET)" },
+  { value: "America/Vancouver", label: "Vancouver (PT)" },
+  { value: "Europe/London", label: "London (GMT/BST)" },
+  { value: "Europe/Paris", label: "Paris (CET/CEST)" },
+  { value: "Europe/Berlin", label: "Berlin (CET/CEST)" },
+  { value: "Asia/Tokyo", label: "Tokyo (JST)" },
+  { value: "Asia/Shanghai", label: "Shanghai (CST)" },
+  { value: "Asia/Dubai", label: "Dubai (GST)" },
+  { value: "Australia/Sydney", label: "Sydney (AEDT/AEST)" },
+];
 
 interface BusinessProfile {
   businessName: string;
@@ -396,14 +422,25 @@ export default function SettingsPage() {
               </div>
               <div className="space-y-2">
                 <Label>Timezone</Label>
-                <Input
-                  value={profile?.timezone || ""}
-                  onChange={(e) =>
+                <Select
+                  value={profile?.timezone || "America/New_York"}
+                  onValueChange={(value) =>
                     setProfile(
-                      profile ? { ...profile, timezone: e.target.value } : null
+                      profile ? { ...profile, timezone: value } : null
                     )
                   }
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select timezone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIMEZONES.map((tz) => (
+                      <SelectItem key={tz.value} value={tz.value}>
+                        {tz.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <Button onClick={saveProfile}>Save Profile</Button>
             </CardContent>
