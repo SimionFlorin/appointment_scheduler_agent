@@ -4,13 +4,12 @@ import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
 import { toast } from "sonner";
 
 interface Appointment {
@@ -40,6 +39,7 @@ export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("upcoming");
+  const [timezone, setTimezone] = useState<string>("America/New_York");
 
   async function load() {
     setLoading(true);
@@ -54,6 +54,14 @@ export default function AppointmentsPage() {
     setAppointments(data);
     setLoading(false);
   }
+
+  useEffect(() => {
+    // Fetch user's timezone
+    fetch("/api/user/timezone")
+      .then((res) => res.json())
+      .then((data) => setTimezone(data.timezone))
+      .catch(() => setTimezone("America/New_York"));
+  }, []);
 
   useEffect(() => {
     load();
@@ -119,11 +127,11 @@ export default function AppointmentsPage() {
                   </div>
                   <div className="text-sm text-right space-y-1">
                     <p className="font-medium">
-                      {format(new Date(apt.startTime), "EEEE, MMM d, yyyy")}
+                      {format(toZonedTime(new Date(apt.startTime), timezone), "EEEE, MMM d, yyyy")}
                     </p>
                     <p className="text-muted-foreground">
-                      {format(new Date(apt.startTime), "h:mm a")} -{" "}
-                      {format(new Date(apt.endTime), "h:mm a")}
+                      {format(toZonedTime(new Date(apt.startTime), timezone), "h:mm a")} -{" "}
+                      {format(toZonedTime(new Date(apt.endTime), timezone), "h:mm a")}
                     </p>
                   </div>
                   {(apt.status === "SCHEDULED" ||

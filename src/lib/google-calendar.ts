@@ -1,5 +1,7 @@
 import { google } from "googleapis";
 import { prisma } from "./prisma";
+import { fromZonedTime, toZonedTime, format as formatTz } from "date-fns-tz";
+import { format, parse } from "date-fns";
 
 function getOAuth2Client() {
   return new google.auth.OAuth2(
@@ -58,8 +60,10 @@ export async function getAvailableSlots(
   const oauth2Client = await getAuthenticatedClient(userId);
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
-  const startOfDay = new Date(`${date}T00:00:00`);
-  const endOfDay = new Date(`${date}T23:59:59`);
+  // Parse the date string (YYYY-MM-DD) and create start/end of day in business timezone
+  const parsedDate = parse(date, "yyyy-MM-dd", new Date());
+  const startOfDayInTz = fromZonedTime(`${date} 00:00:00`, timezone);
+  const endOfDayInTz = fromZonedTime(`${date} 23:59:59`, timezone);
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -68,6 +72,8 @@ export async function getAvailableSlots(
 
   if (!user?.businessProfile) return [];
 
+  // Get day of week in the business timezone
+  const dateInTz = toZonedTime(startOfDayInTz, timezone);
   const dayNames = [
     "sunday",
     "monday",
@@ -77,7 +83,7 @@ export async function getAvailableSlots(
     "friday",
     "saturday",
   ] as const;
-  const dayName = dayNames[startOfDay.getDay()];
+  const dayName = dayNames[dateInTz.getDay()];
   const profile = user.businessProfile;
   const dayStart =
     (profile[`${dayName}Start` as keyof typeof profile] as string) || null;
@@ -88,8 +94,8 @@ export async function getAvailableSlots(
 
   const response = await calendar.freebusy.query({
     requestBody: {
-      timeMin: startOfDay.toISOString(),
-      timeMax: endOfDay.toISOString(),
+      timeMin: startOfDayInTz.toISOString(),
+      timeMax: endOfDayInTz.toISOString(),
       timeZone: timezone,
       items: [{ id: "primary" }],
     },
@@ -103,8 +109,9 @@ export async function getAvailableSlots(
 
   const slots: { start: string; end: string }[] = [];
 
-  const workStart = new Date(`${date}T${dayStart}:00`);
-  const workEnd = new Date(`${date}T${dayEnd}:00`);
+  // Create work hours in the business timezone and convert to UTC
+  const workStart = fromZonedTime(`${date} ${dayStart}:00`, timezone);
+  const workEnd = fromZonedTime(`${date} ${dayEnd}:00`, timezone);
 
   let current = workStart.getTime();
   const slotDuration = durationMinutes * 60 * 1000;
