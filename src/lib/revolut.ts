@@ -1,5 +1,3 @@
-import crypto from "crypto";
-
 const REVOLUT_API_URL = process.env.REVOLUT_API_URL!;
 const REVOLUT_API_SECRET_KEY = process.env.REVOLUT_API_SECRET_KEY!;
 
@@ -74,25 +72,3 @@ export async function retrieveRevolutOrder(
   return response.json();
 }
 
-export function verifyWebhookSignature(
-  rawBody: string,
-  signature: string,
-  timestamp: string
-): boolean {
-  const signingSecret = process.env.REVOLUT_WEBHOOK_SECRET!;
-  const signatureVersion = signature.substring(0, signature.indexOf("="));
-  const payloadToSign = `${signatureVersion}.${timestamp}.${rawBody}`;
-
-  const computedHmac = crypto
-    .createHmac("sha256", signingSecret)
-    .update(payloadToSign)
-    .digest("hex");
-
-  const expectedSignature = `${signatureVersion}=${computedHmac}`;
-
-  if (expectedSignature !== signature) return false;
-
-  const currentTimestamp = Date.now();
-  const difference = currentTimestamp - parseInt(timestamp, 10);
-  return difference >= 0 && difference <= 300_000; // 5 minutes
-}

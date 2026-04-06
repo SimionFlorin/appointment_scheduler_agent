@@ -1,26 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyWebhookSignature } from "@/lib/revolut";
 import { activateSubscription } from "@/lib/subscription";
 
 export async function POST(req: Request) {
-  const rawBody = await req.text();
-  const signature = req.headers.get("revolut-signature") || "";
-  const timestamp = req.headers.get("revolut-request-timestamp") || "";
-
-  if (
-    process.env.REVOLUT_WEBHOOK_SECRET &&
-    process.env.REVOLUT_WEBHOOK_SECRET !== "your-revolut-webhook-signing-secret"
-  ) {
-    if (!verifyWebhookSignature(rawBody, signature, timestamp)) {
-      return NextResponse.json(
-        { error: "Invalid signature" },
-        { status: 403 }
-      );
-    }
-  }
-
-  const payload = JSON.parse(rawBody);
+  const payload = await req.json();
   const { event, order_id } = payload;
 
   if (event === "ORDER_COMPLETED") {

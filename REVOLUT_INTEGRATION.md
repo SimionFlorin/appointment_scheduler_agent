@@ -19,7 +19,7 @@ BookMe AI now includes subscription billing powered by Revolut's Hosted Checkout
 
 | File | Purpose |
 |------|---------|
-| `src/lib/revolut.ts` | Revolut Merchant API client — creates orders, retrieves order status, verifies webhook signatures (HMAC-SHA256) |
+| `src/lib/revolut.ts` | Revolut Merchant API client — creates orders and retrieves order status |
 | `src/lib/subscription.ts` | Subscription business logic — creates trial on sign-up, checks subscription status, activates paid subscriptions |
 
 ### Backend — API Routes
@@ -29,7 +29,7 @@ BookMe AI now includes subscription billing powered by Revolut's Hosted Checkout
 | `/api/billing` | GET | Returns current subscription status for the authenticated user |
 | `/api/billing/checkout` | POST | Creates a Revolut order and returns the hosted checkout URL. Accepts `{ currency: "USD" | "RON" }` |
 | `/api/billing/status` | GET | Polls Revolut for latest payment status and updates subscription accordingly (fallback if webhook is delayed) |
-| `/api/webhooks/revolut` | POST | Receives Revolut webhook events (`ORDER_COMPLETED`, `ORDER_PAYMENT_FAILED`), verifies signature, and activates/fails subscriptions |
+| `/api/webhooks/revolut` | POST | Receives Revolut webhook events (`ORDER_COMPLETED`, `ORDER_PAYMENT_FAILED`) and activates/fails subscriptions. Validates by matching `order_id` against existing Payment records. |
 
 ### Backend — Auth Changes
 
@@ -57,9 +57,8 @@ Added to `.env` and `.env.example`:
 
 ```
 REVOLUT_API_URL=https://sandbox-merchant.revolut.com
-REVOLUT_API_SECRET_KEY=your-revolut-sandbox-secret-key
-REVOLUT_API_PUBLIC_KEY=your-revolut-sandbox-public-key
-REVOLUT_WEBHOOK_SECRET=your-revolut-webhook-signing-secret
+REVOLUT_API_SECRET_KEY=your-revolut-secret-key
+REVOLUT_API_PUBLIC_KEY=your-revolut-public-key
 ```
 
 ---
@@ -84,7 +83,6 @@ REVOLUT_WEBHOOK_SECRET=your-revolut-webhook-signing-secret
 - [ ] Create a new webhook with URL: `https://your-domain.com/api/webhooks/revolut`
   - For local testing, use a tunnel service like ngrok: `https://your-ngrok-id.ngrok.io/api/webhooks/revolut`
 - [ ] Subscribe to events: `ORDER_COMPLETED`, `ORDER_PAYMENT_FAILED`
-- [ ] Copy the **Webhook Signing Secret** into your `.env` as `REVOLUT_WEBHOOK_SECRET`
 
 ### 4. Test with Sandbox Cards
 
