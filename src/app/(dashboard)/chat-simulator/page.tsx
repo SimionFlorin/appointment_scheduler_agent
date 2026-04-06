@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
 import { RotateCcw, Send, Trash2 } from "lucide-react";
 
 interface Message {
@@ -23,7 +24,15 @@ export default function ChatSimulatorPage() {
   const [resetting, setResetting] = useState(false);
   const [deletingTests, setDeletingTests] = useState(false);
   const [deletingConvos, setDeletingConvos] = useState(false);
+  const [timezone, setTimezone] = useState<string>("America/New_York");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch("/api/user/timezone")
+      .then((res) => res.json())
+      .then((data) => setTimezone(data.timezone))
+      .catch(() => setTimezone("America/New_York"));
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -222,7 +231,7 @@ export default function ChatSimulatorPage() {
                         : "text-muted-foreground"
                     }`}
                   >
-                    {format(new Date(msg.timestamp), "h:mm a")}
+                    {format(toZonedTime(new Date(msg.timestamp), timezone), "h:mm a")}
                   </p>
                 </div>
               </div>

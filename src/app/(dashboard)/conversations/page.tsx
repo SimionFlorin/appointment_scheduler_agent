@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
 import { MessageSquare } from "lucide-react";
 
 interface ConversationMessage {
@@ -24,8 +25,14 @@ export default function ConversationsPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [timezone, setTimezone] = useState<string>("America/New_York");
 
   useEffect(() => {
+    fetch("/api/user/timezone")
+      .then((res) => res.json())
+      .then((data) => setTimezone(data.timezone))
+      .catch(() => setTimezone("America/New_York"));
+
     fetch("/api/conversations")
       .then((r) => r.json())
       .then((data) => {
@@ -88,7 +95,7 @@ export default function ConversationsPage() {
                   {conv.messages[conv.messages.length - 1]?.content || ""}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {format(new Date(conv.lastMessageAt), "MMM d, h:mm a")}
+                  {format(toZonedTime(new Date(conv.lastMessageAt), timezone), "MMM d, h:mm a")}
                 </p>
               </button>
             ))
@@ -135,7 +142,7 @@ export default function ConversationsPage() {
                               : "text-muted-foreground"
                           }`}
                         >
-                          {format(new Date(msg.timestamp), "h:mm a")}
+                          {format(toZonedTime(new Date(msg.timestamp), timezone), "h:mm a")}
                         </p>
                       </div>
                     </div>
