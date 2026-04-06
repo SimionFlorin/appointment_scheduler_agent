@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/shell";
+import { SubscriptionGate } from "@/components/dashboard/subscription-gate";
 
 export default async function DashboardLayout({
   children,
@@ -10,5 +11,9 @@ export default async function DashboardLayout({
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  return <DashboardShell user={session.user}>{children}</DashboardShell>;
+  return (
+    <DashboardShell user={session.user}>
+      <SubscriptionGate>{children}</SubscriptionGate>
+    </DashboardShell>
+  );
 }
