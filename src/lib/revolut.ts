@@ -1,7 +1,25 @@
-const REVOLUT_API_URL = process.env.REVOLUT_API_URL!;
-const REVOLUT_API_SECRET_KEY = process.env.REVOLUT_API_SECRET_KEY!;
+const REVOLUT_SANDBOX_URL =
+  process.env.REVOLUT_API_URL || "https://sandbox-merchant.revolut.com";
+const REVOLUT_SANDBOX_KEY = process.env.REVOLUT_API_SECRET_KEY!;
+
+const REVOLUT_LIVE_URL =
+  process.env.REVOLUT_LIVE_API_URL || "https://merchant.revolut.com";
+const REVOLUT_LIVE_KEY = process.env.REVOLUT_LIVE_SECRET_KEY || "";
 
 const API_VERSION = "2024-09-01";
+
+const TEST_CARD_NUMBER = process.env.REVOLUT_TEST_CARD_NUMBER || "";
+
+function getRevolutConfig(sandbox: boolean) {
+  return {
+    apiUrl: sandbox ? REVOLUT_SANDBOX_URL : REVOLUT_LIVE_URL,
+    secretKey: sandbox ? REVOLUT_SANDBOX_KEY : REVOLUT_LIVE_KEY,
+  };
+}
+
+export function isSandboxCard(cardNumber: string): boolean {
+  return cardNumber.replace(/\s/g, "") === TEST_CARD_NUMBER;
+}
 
 interface CreateOrderParams {
   amount: number;
@@ -25,8 +43,11 @@ interface RevolutOrder {
 }
 
 export async function createRevolutOrder(
-  params: CreateOrderParams
+  params: CreateOrderParams,
+  sandbox: boolean = false
 ): Promise<RevolutOrder> {
+  const { apiUrl, secretKey } = getRevolutConfig(sandbox);
+
   const body: Record<string, unknown> = {
     amount: params.amount,
     currency: params.currency,
@@ -36,10 +57,10 @@ export async function createRevolutOrder(
   if (params.customerEmail) body.customer_email = params.customerEmail;
   if (params.redirectUrl) body.redirect_url = params.redirectUrl;
 
-  const response = await fetch(`${REVOLUT_API_URL}/api/orders`, {
+  const response = await fetch(`${apiUrl}/api/orders`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${REVOLUT_API_SECRET_KEY}`,
+      Authorization: `Bearer ${secretKey}`,
       "Content-Type": "application/json",
       "Revolut-Api-Version": API_VERSION,
     },
@@ -55,11 +76,14 @@ export async function createRevolutOrder(
 }
 
 export async function retrieveRevolutOrder(
-  orderId: string
+  orderId: string,
+  sandbox: boolean = false
 ): Promise<RevolutOrder> {
-  const response = await fetch(`${REVOLUT_API_URL}/api/orders/${orderId}`, {
+  const { apiUrl, secretKey } = getRevolutConfig(sandbox);
+
+  const response = await fetch(`${apiUrl}/api/orders/${orderId}`, {
     headers: {
-      Authorization: `Bearer ${REVOLUT_API_SECRET_KEY}`,
+      Authorization: `Bearer ${secretKey}`,
       "Revolut-Api-Version": API_VERSION,
     },
   });
@@ -71,4 +95,3 @@ export async function retrieveRevolutOrder(
 
   return response.json();
 }
-

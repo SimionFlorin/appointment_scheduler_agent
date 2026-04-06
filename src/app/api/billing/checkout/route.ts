@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createRevolutOrder } from "@/lib/revolut";
+import { createRevolutOrder, isSandboxCard } from "@/lib/revolut";
 import { getSubscriptionInfo } from "@/lib/subscription";
 
-const PRICE_USD = 2000; // $20.00 in minor units (cents)
-const PRICE_RON = 10000; // 100.00 RON in minor units (bani)
+const PRICE_USD = 2000; // $20.00 in cents
+const PRICE_RON = 10000; // 100.00 RON in bani
+
+const DISCOUNT_CODES: Record<string, { priceUSD: number; priceRON: number }> = {
+  AQUATIQUE: { priceUSD: 300, priceRON: 1500 },
+};
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -23,7 +27,28 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const currency = body.currency === "RON" ? "RON" : "USD";
-  const amount = currency === "RON" ? PRICE_RON : PRICE_USD;
+  const discountCode = (body.discountCode || "").trim().toUpperCase();
+  const cardNumber = (body.cardNumber || "").replace(/\s/g, "");
+
+  const sandbox = cardNumber ? isSandboxCard(cardNumber) : false;
+
+  let amount = currency === "RON" ? PRICE_RON : PRICE_USD;
+  let appliedDiscount: string | null = null;
+
+  if (discountCode) {
+    if (DISCOUNT_CODES[discountCode]) {
+      amount =
+        currency === "RON"
+          ? DISCOUNT_CODES[discountCode].priceRON
+          : DISCOUNT_CODES[discountCode].priceUSD;
+      appliedDiscount = discountCode;
+    } else {
+      return NextResponse.json(
+        { error: "Invalid discount code" },
+        { status: 400 }
+      );
+    }
+  }
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -31,15 +56,24 @@ export async function POST(req: Request) {
   });
 
   const origin =
-    req.headers.get("origin") || req.headers.get("referer")?.replace(/\/[^/]*$/, "") || "";
+    req.headers.get("origin") ||
+    req.headers.get("referer")?.replace(/\/[^/]*$/, "") ||
+    "";
 
-  const revolutOrder = await createRevolutOrder({
-    amount,
-    currency,
-    description: "BookMe AI - Monthly Subscription",
-    customerEmail: user?.email || undefined,
-    redirectUrl: `${origin}/billing?status=success`,
-  });
+  const description = appliedDiscount
+    ? `BookMe AI - Monthly Subscription (Discount: ${appliedDiscount})`
+    : "BookMe AI - Monthly Subscription";
+
+  const revolutOrder = await createRevolutOrder(
+    {
+      amount,
+      currency,
+      description,
+      customerEmail: user?.email || undefined,
+      redirectUrl: `${origin}/billing?status=success`,
+    },
+    sandbox
+  );
 
   await prisma.payment.create({
     data: {
@@ -49,6 +83,8 @@ export async function POST(req: Request) {
       currency,
       status: "PENDING",
       checkoutUrl: revolutOrder.checkout_url,
+      isSandbox: sandbox,
+      discountCode: appliedDiscount,
     },
   });
 

@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import {
   CreditCard,
@@ -19,22 +21,42 @@ import {
   AlertTriangle,
   Loader2,
   Sparkles,
+  Tag,
+  XCircle,
 } from "lucide-react";
 
 interface SubscriptionInfo {
-  status: "trialing" | "active" | "past_due" | "cancelled" | "expired" | "none";
+  status:
+    | "trialing"
+    | "active"
+    | "past_due"
+    | "cancelled"
+    | "expired"
+    | "none";
   trialEndsAt: string | null;
   currentPeriodEnd: string | null;
   daysLeft: number | null;
   isActive: boolean;
 }
 
+const VALID_DISCOUNTS: Record<string, { usd: number; ron: number }> = {
+  AQUATIQUE: { usd: 3, ron: 15 },
+};
+
 export default function BillingPage() {
   const searchParams = useSearchParams();
-  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
+  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
   const [currency, setCurrency] = useState<"USD" | "RON">("USD");
+
+  const [discountCode, setDiscountCode] = useState("");
+  const [appliedDiscount, setAppliedDiscount] = useState<string | null>(null);
+  const [discountError, setDiscountError] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
 
   const fetchSubscription = useCallback(async () => {
     const res = await fetch("/api/billing/status");
@@ -63,13 +85,55 @@ export default function BillingPage() {
     }
   }, [searchParams]);
 
+  function handleApplyDiscount() {
+    const code = discountCode.trim().toUpperCase();
+    if (!code) {
+      setDiscountError("Please enter a discount code");
+      return;
+    }
+    if (VALID_DISCOUNTS[code]) {
+      setAppliedDiscount(code);
+      setDiscountError("");
+      toast.success(`Discount code "${code}" applied!`);
+    } else {
+      setAppliedDiscount(null);
+      setDiscountError("Invalid discount code");
+    }
+  }
+
+  function handleRemoveDiscount() {
+    setAppliedDiscount(null);
+    setDiscountCode("");
+    setDiscountError("");
+  }
+
+  function getDisplayPrice() {
+    if (appliedDiscount && VALID_DISCOUNTS[appliedDiscount]) {
+      const d = VALID_DISCOUNTS[appliedDiscount];
+      return currency === "USD" ? `$${d.usd}` : `${d.ron} RON`;
+    }
+    return currency === "USD" ? "$20" : "100 RON";
+  }
+
+  function getOriginalPrice() {
+    return currency === "USD" ? "$20" : "100 RON";
+  }
+
+  const testCardNumber = process.env.NEXT_PUBLIC_REVOLUT_TEST_CARD_NUMBER || "";
+  const isSandbox =
+    testCardNumber && cardNumber.replace(/\s/g, "") === testCardNumber;
+
   async function handleCheckout() {
     setCheckoutLoading(true);
     try {
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currency }),
+        body: JSON.stringify({
+          currency,
+          discountCode: appliedDiscount,
+          cardNumber: cardNumber.replace(/\s/g, ""),
+        }),
       });
 
       const data = await res.json();
@@ -84,6 +148,36 @@ export default function BillingPage() {
       toast.error("Something went wrong");
     } finally {
       setCheckoutLoading(false);
+    }
+  }
+
+  async function handleUnsubscribe() {
+    if (
+      !window.confirm(
+        "Are you sure you want to cancel your subscription? You will lose access to BookMe AI features at the end of your current billing period."
+      )
+    ) {
+      return;
+    }
+
+    setCancelLoading(true);
+    try {
+      const res = await fetch("/api/billing/cancel", {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "Failed to cancel subscription");
+        return;
+      }
+
+      toast.success("Subscription cancelled successfully.");
+      await fetchSubscription();
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setCancelLoading(false);
     }
   }
 
@@ -162,23 +256,30 @@ export default function BillingPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold">{config.label}</span>
-                  <Badge variant={config.variant}>{status.toUpperCase()}</Badge>
+                  <Badge variant={config.variant}>
+                    {status.toUpperCase()}
+                  </Badge>
                 </div>
-                {subscription?.daysLeft !== null && subscription?.daysLeft !== undefined && (
-                  <p className={`text-sm mt-0.5 ${config.color}`}>
-                    {subscription.daysLeft} day{subscription.daysLeft !== 1 ? "s" : ""} remaining
-                  </p>
-                )}
+                {subscription?.daysLeft !== null &&
+                  subscription?.daysLeft !== undefined && (
+                    <p className={`text-sm mt-0.5 ${config.color}`}>
+                      {subscription.daysLeft} day
+                      {subscription.daysLeft !== 1 ? "s" : ""} remaining
+                    </p>
+                  )}
               </div>
             </div>
             {subscription?.trialEndsAt && status === "trialing" && (
               <p className="text-sm text-muted-foreground">
                 Trial ends{" "}
-                {new Date(subscription.trialEndsAt).toLocaleDateString("en-US", {
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })}
+                {new Date(subscription.trialEndsAt).toLocaleDateString(
+                  "en-US",
+                  {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  }
+                )}
               </p>
             )}
             {subscription?.currentPeriodEnd && status === "active" && (
@@ -202,14 +303,24 @@ export default function BillingPage() {
             BookMe AI Pro
           </CardTitle>
           <CardDescription>
-            Everything you need to automate your appointment scheduling
+            Monthly subscription — everything you need to automate appointment
+            scheduling
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex items-baseline gap-1">
-            <span className="text-4xl font-bold">
-              {currency === "USD" ? "$20" : "100 RON"}
-            </span>
+          <div className="flex items-baseline gap-2">
+            {appliedDiscount ? (
+              <>
+                <span className="text-2xl font-bold text-muted-foreground line-through">
+                  {getOriginalPrice()}
+                </span>
+                <span className="text-4xl font-bold text-green-600">
+                  {getDisplayPrice()}
+                </span>
+              </>
+            ) : (
+              <span className="text-4xl font-bold">{getDisplayPrice()}</span>
+            )}
             <span className="text-muted-foreground">/month</span>
           </div>
 
@@ -221,6 +332,7 @@ export default function BillingPage() {
               "Customer conversation history",
               "Chat simulator for testing",
               "Multi-provider AI support (Gemini & OpenAI)",
+              "Auto-renewing monthly subscription",
             ].map((feature) => (
               <li key={feature} className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
@@ -231,21 +343,88 @@ export default function BillingPage() {
 
           {status !== "active" && (
             <>
+              {/* Currency selector */}
               <div className="flex gap-2">
                 <Button
                   variant={currency === "USD" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setCurrency("USD")}
                 >
-                  USD ($20)
+                  USD ({appliedDiscount ? `$${VALID_DISCOUNTS[appliedDiscount]?.usd}` : "$20"})
                 </Button>
                 <Button
                   variant={currency === "RON" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setCurrency("RON")}
                 >
-                  RON (100 lei)
+                  RON ({appliedDiscount ? `${VALID_DISCOUNTS[appliedDiscount]?.ron} lei` : "100 lei"})
                 </Button>
+              </div>
+
+              {/* Discount code */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5 text-sm">
+                  <Tag className="h-3.5 w-3.5" />
+                  Discount Code
+                </Label>
+                {appliedDiscount ? (
+                  <div className="flex items-center gap-2 rounded-md bg-green-50 border border-green-200 px-3 py-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-700">
+                      {appliedDiscount}
+                    </span>
+                    <button
+                      onClick={handleRemoveDiscount}
+                      className="ml-auto text-green-600 hover:text-green-800"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Enter discount code"
+                      value={discountCode}
+                      onChange={(e) => {
+                        setDiscountCode(e.target.value);
+                        setDiscountError("");
+                      }}
+                      onKeyDown={(e) =>
+                        e.key === "Enter" && handleApplyDiscount()
+                      }
+                      className={discountError ? "border-red-300" : ""}
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={handleApplyDiscount}
+                      type="button"
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                )}
+                {discountError && (
+                  <p className="text-xs text-red-500">{discountError}</p>
+                )}
+              </div>
+
+              {/* Card number (determines sandbox vs live) */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5 text-sm">
+                  <CreditCard className="h-3.5 w-3.5" />
+                  Card Number
+                </Label>
+                <Input
+                  placeholder="Enter your card number"
+                  value={cardNumber}
+                  onChange={(e) => setCardNumber(e.target.value)}
+                  maxLength={19}
+                />
+                {isSandbox && (
+                  <p className="text-xs text-amber-600">
+                    Test card detected — sandbox mode will be used
+                  </p>
+                )}
               </div>
 
               <Button
@@ -279,14 +458,35 @@ export default function BillingPage() {
           )}
 
           {status === "active" && (
-            <div className="rounded-lg bg-green-50 p-4 text-sm text-green-700 border border-green-200">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4" />
-                <span className="font-medium">Your subscription is active</span>
+            <div className="space-y-4">
+              <div className="rounded-lg bg-green-50 p-4 text-sm text-green-700 border border-green-200">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="font-medium">
+                    Your subscription is active
+                  </span>
+                </div>
+                <p className="mt-1 text-green-600">
+                  You have full access to all BookMe AI features. Your
+                  subscription renews automatically each month.
+                </p>
               </div>
-              <p className="mt-1 text-green-600">
-                You have full access to all BookMe AI features.
-              </p>
+
+              <Button
+                variant="outline"
+                className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={handleUnsubscribe}
+                disabled={cancelLoading}
+              >
+                {cancelLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Cancelling...
+                  </>
+                ) : (
+                  "Unsubscribe"
+                )}
+              </Button>
             </div>
           )}
         </CardContent>
@@ -308,6 +508,10 @@ export default function BillingPage() {
           <p>
             Accepted methods: Visa, Mastercard, Revolut Pay, Apple Pay, Google
             Pay, and bank transfers.
+          </p>
+          <p>
+            This is a recurring monthly subscription. You can cancel anytime from
+            this page.
           </p>
           <p>
             For billing questions, contact us at{" "}

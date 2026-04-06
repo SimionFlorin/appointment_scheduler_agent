@@ -121,6 +121,16 @@ export async function activateSubscription(
   });
 }
 
+export async function cancelSubscription(userId: string): Promise<void> {
+  await prisma.subscription.update({
+    where: { userId },
+    data: {
+      status: "CANCELLED",
+      cancelledAt: new Date(),
+    },
+  });
+}
+
 export function isSubscriptionActive(info: SubscriptionInfo): boolean {
   return info.isActive;
 }

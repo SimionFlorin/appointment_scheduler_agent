@@ -17,7 +17,10 @@ export async function GET() {
 
   if (latestPayment && latestPayment.status === "PENDING") {
     try {
-      const order = await retrieveRevolutOrder(latestPayment.revolutOrderId);
+      const order = await retrieveRevolutOrder(
+        latestPayment.revolutOrderId,
+        latestPayment.isSandbox
+      );
 
       if (order.state === "COMPLETED") {
         await prisma.payment.update({
