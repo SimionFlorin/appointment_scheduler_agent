@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Users, Clock, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -17,6 +18,7 @@ export default async function DashboardPage() {
     totalConversations,
     activeServices,
     recentAppointments,
+    businessProfile,
   ] = await Promise.all([
     prisma.appointment.count({ where: { userId } }),
     prisma.appointment.count({
@@ -38,7 +40,13 @@ export default async function DashboardPage() {
       orderBy: { startTime: "asc" },
       take: 5,
     }),
+    prisma.businessProfile.findUnique({
+      where: { userId },
+      select: { timezone: true },
+    }),
   ]);
+
+  const timezone = businessProfile?.timezone || "America/New_York";
 
   const whatsappConfig = await prisma.whatsAppConfig.findUnique({
     where: { userId },
@@ -147,11 +155,11 @@ export default async function DashboardPage() {
                   </div>
                   <div className="text-right space-y-1">
                     <p className="text-sm font-medium">
-                      {format(new Date(apt.startTime), "MMM d, yyyy")}
+                      {format(toZonedTime(new Date(apt.startTime), timezone), "MMM d, yyyy")}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {format(new Date(apt.startTime), "h:mm a")} -{" "}
-                      {format(new Date(apt.endTime), "h:mm a")}
+                      {format(toZonedTime(new Date(apt.startTime), timezone), "h:mm a")} -{" "}
+                      {format(toZonedTime(new Date(apt.endTime), timezone), "h:mm a")}
                     </p>
                   </div>
                   <Badge

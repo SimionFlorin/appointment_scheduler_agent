@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import { prisma } from "./prisma";
 import { authConfig } from "./auth.config";
+import { ensureSubscription } from "./subscription";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
@@ -8,7 +9,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async signIn({ user, account }) {
       if (!account || !user.email) return false;
 
-      await prisma.user.upsert({
+      const dbUser = await prisma.user.upsert({
         where: { googleId: account.providerAccountId },
         update: {
           name: user.name || "",
@@ -33,11 +34,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         },
       });
 
+      await ensureSubscription(dbUser.id);
+
       return true;
     },
 
     async jwt({ token, account, trigger }) {
-      // On sign-in: store googleId and fetch user data from DB
       if (account) {
         token.googleId = account.providerAccountId;
 
@@ -52,7 +54,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
       }
 
-      // On explicit update() call: re-fetch from DB to pick up changes
       if (trigger === "update" && token.googleId) {
         const dbUser = await prisma.user.findUnique({
           where: { googleId: token.googleId as string },

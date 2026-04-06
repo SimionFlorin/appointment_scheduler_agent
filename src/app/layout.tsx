@@ -53,6 +53,25 @@ export default function RootLayout({
             gtag('config', 'G-0ZX0QSW8R9');
           `}
         </Script>
+        <Script id="facebook-sdk" strategy="lazyOnload">
+          {`
+            window.fbAsyncInit = function() {
+              FB.init({
+                appId: '1686323665822897',
+                autoLogAppEvents: true,
+                xfbml: true,
+                version: 'v25.0'
+              });
+            };
+            (function(d, s, id){
+              var js, fjs = d.getElementsByTagName(s)[0];
+              if (d.getElementById(id)) return;
+              js = d.createElement(s); js.id = id;
+              js.src = "https://connect.facebook.net/en_US/sdk.js";
+              fjs.parentNode.insertBefore(js, fjs);
+            }(document, 'script', 'facebook-jssdk'));
+          `}
+        </Script>
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
