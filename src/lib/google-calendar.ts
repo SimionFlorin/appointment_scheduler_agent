@@ -123,9 +123,11 @@ export async function getAvailableSlots(
     );
 
     if (!isConflict) {
+      const startLocal = toZonedTime(new Date(current), timezone);
+      const endLocal = toZonedTime(new Date(slotEnd), timezone);
       slots.push({
-        start: new Date(current).toISOString(),
-        end: new Date(slotEnd).toISOString(),
+        start: formatTz(startLocal, "yyyy-MM-dd'T'HH:mm:ss", { timeZone: timezone }),
+        end: formatTz(endLocal, "yyyy-MM-dd'T'HH:mm:ss", { timeZone: timezone }),
       });
     }
 

@@ -15,6 +15,7 @@ import {
   createCalendarEvent,
   deleteCalendarEvent,
 } from "./google-calendar";
+import { fromZonedTime } from "date-fns-tz";
 import { getWhatsAppProvider } from "./whatsapp";
 import { ConversationMessage } from "@/types";
 
@@ -137,7 +138,10 @@ function createTools(
       if (!service) return JSON.stringify({ error: "Service not found" });
 
       const isTest = !!options?.simulate;
-      const startTime = new Date(datetime);
+      const hasTimezoneInfo = /[Zz]|[+-]\d{2}:?\d{2}$/.test(datetime);
+      const startTime = hasTimezoneInfo
+        ? new Date(datetime)
+        : fromZonedTime(datetime, timezone);
       const endTime = new Date(startTime.getTime() + service.duration * 60000);
       const summary = isTest
         ? `(Test Appointment) ${service.name} - ${customer_name}`
@@ -259,7 +263,7 @@ function createTools(
             (profile[`${day}End` as keyof typeof profile] as string) || null,
         };
       }
-      return JSON.stringify(hours);
+      return JSON.stringify({ timezone: profile.timezone, hours });
     },
     {
       name: "get_business_hours",
