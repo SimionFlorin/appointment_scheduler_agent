@@ -41,8 +41,10 @@ enum SubscriptionStatus {
 
 enum PaymentStatus {
   PENDING
+  AUTHORISED
   COMPLETED
   FAILED
+  CANCELLED
   REFUNDED
 }
 
@@ -200,6 +202,19 @@ model Payment {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+}
+
+model WebhookEvent {
+  id        String   @id @default(cuid())
+  source    String   // "revolut-sandbox" | "revolut-live"
+  event     String   // e.g. ORDER_COMPLETED, ORDER_PAYMENT_FAILED
+  orderId   String?
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([source])
+  @@index([orderId])
+  @@index([createdAt])
 }
 
 model Conversation {
