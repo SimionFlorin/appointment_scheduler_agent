@@ -263,7 +263,7 @@ function createTools(
             (profile[`${day}End` as keyof typeof profile] as string) || null,
         };
       }
-      return JSON.stringify(hours);
+      return JSON.stringify({ timezone: profile.timezone, hours });
     },
     {
       name: "get_business_hours",

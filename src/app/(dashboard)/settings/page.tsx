@@ -96,13 +96,8 @@ export default function SettingsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(profile),
     });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.profile) setProfile(data.profile);
-      toast.success("Profile updated");
-    } else {
-      toast.error("Failed to update profile");
-    }
+    if (res.ok) toast.success("Profile updated");
+    else toast.error("Failed to update profile");
   }
 
   async function saveWhatsApp() {
@@ -423,7 +418,9 @@ export default function SettingsPage() {
               <CardTitle>Business Hours</CardTitle>
               <CardDescription>
                 Set your working hours for each day. Leave empty for closed
-                days.
+                days. All times are in{" "}
+                <strong>{profile?.timezone || "America/New_York"}</strong>{" "}
+                timezone.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
