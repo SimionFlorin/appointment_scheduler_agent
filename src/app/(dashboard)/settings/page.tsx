@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { signOut } from "next-auth/react";
 import { toast } from "sonner";
+import { TIMEZONES } from "@/lib/timezones";
 
 const DAYS = [
   "monday",
