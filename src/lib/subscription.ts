@@ -8,6 +8,8 @@ export interface SubscriptionInfo {
   currentPeriodEnd: Date | null;
   daysLeft: number | null;
   isActive: boolean;
+  /** True when the user paid during trial and the paid period hasn't started yet. */
+  paidDuringTrial: boolean;
 }
 
 export async function ensureSubscription(userId: string): Promise<void> {
@@ -42,6 +44,7 @@ export async function getSubscriptionInfo(
       currentPeriodEnd: null,
       daysLeft: null,
       isActive: false,
+      paidDuringTrial: false,
     };
   }
 
@@ -62,6 +65,7 @@ export async function getSubscriptionInfo(
       currentPeriodEnd: null,
       daysLeft,
       isActive,
+      paidDuringTrial: false,
     };
   }
 
@@ -75,12 +79,16 @@ export async function getSubscriptionInfo(
       )
     );
 
+    const paidDuringTrial =
+      sub.currentPeriodStart !== null && now < sub.currentPeriodStart;
+
     return {
       status: isActive ? "active" : "expired",
       trialEndsAt: sub.trialEndsAt,
       currentPeriodEnd: sub.currentPeriodEnd,
       daysLeft,
       isActive,
+      paidDuringTrial,
     };
   }
 
@@ -90,6 +98,7 @@ export async function getSubscriptionInfo(
     currentPeriodEnd: sub.currentPeriodEnd,
     daysLeft: null,
     isActive: sub.status === "ACTIVE",
+    paidDuringTrial: false,
   };
 }
 
@@ -98,7 +107,19 @@ export async function activateSubscription(
   revolutOrderId: string
 ): Promise<void> {
   const now = new Date();
-  const periodEnd = new Date();
+
+  const existing = await prisma.subscription.findUnique({
+    where: { userId },
+  });
+
+  // If the user is still in an active trial, the paid month starts after the trial ends.
+  const baseDate =
+    existing?.status === "TRIALING" && existing.trialEndsAt > now
+      ? existing.trialEndsAt
+      : now;
+
+  const periodStart = new Date(baseDate);
+  const periodEnd = new Date(baseDate);
   periodEnd.setMonth(periodEnd.getMonth() + 1);
 
   await prisma.subscription.upsert({
@@ -106,7 +127,7 @@ export async function activateSubscription(
     update: {
       status: "ACTIVE",
       revolutOrderId,
-      currentPeriodStart: now,
+      currentPeriodStart: periodStart,
       currentPeriodEnd: periodEnd,
       cancelledAt: null,
     },
@@ -115,8 +136,18 @@ export async function activateSubscription(
       status: "ACTIVE",
       revolutOrderId,
       trialEndsAt: now,
-      currentPeriodStart: now,
+      currentPeriodStart: periodStart,
       currentPeriodEnd: periodEnd,
+    },
+  });
+}
+
+export async function cancelSubscription(userId: string): Promise<void> {
+  await prisma.subscription.update({
+    where: { userId },
+    data: {
+      status: "CANCELLED",
+      cancelledAt: new Date(),
     },
   });
 }

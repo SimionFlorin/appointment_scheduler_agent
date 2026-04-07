@@ -7,7 +7,11 @@
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "webhook:create": "node --env-file=.env scripts/revolut/create-webhook.mjs",
+    "webhook:list": "node --env-file=.env scripts/revolut/list-webhooks.mjs",
+    "webhook:get": "node --env-file=.env scripts/revolut/get-webhook.mjs",
+    "webhook:delete": "node --env-file=.env scripts/revolut/delete-webhook.mjs"
   },
   "dependencies": {
     "@langchain/core": "^1.1.30",
