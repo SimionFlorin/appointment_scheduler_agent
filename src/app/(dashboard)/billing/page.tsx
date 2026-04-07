@@ -37,6 +37,7 @@ interface SubscriptionInfo {
   currentPeriodEnd: string | null;
   daysLeft: number | null;
   isActive: boolean;
+  paidDuringTrial: boolean;
 }
 
 const VALID_DISCOUNTS: Record<string, { usd: number; ron: number }> = {
@@ -284,11 +285,18 @@ export default function BillingPage() {
             )}
             {subscription?.currentPeriodEnd && status === "active" && (
               <p className="text-sm text-muted-foreground">
-                Renews{" "}
-                {new Date(subscription.currentPeriodEnd).toLocaleDateString(
-                  "en-US",
-                  { month: "long", day: "numeric", year: "numeric" }
-                )}
+                {subscription.paidDuringTrial
+                  ? "Paid month starts"
+                  : "Renews"}{" "}
+                {subscription.paidDuringTrial && subscription.trialEndsAt
+                  ? new Date(subscription.trialEndsAt).toLocaleDateString(
+                      "en-US",
+                      { month: "long", day: "numeric", year: "numeric" }
+                    )
+                  : new Date(subscription.currentPeriodEnd).toLocaleDateString(
+                      "en-US",
+                      { month: "long", day: "numeric", year: "numeric" }
+                    )}
               </p>
             )}
           </div>
@@ -450,8 +458,9 @@ export default function BillingPage() {
 
               {status === "trialing" && (
                 <p className="text-xs text-center text-muted-foreground">
-                  You can continue using BookMe AI for free during your trial
-                  period. Subscribe anytime to ensure uninterrupted service.
+                  Subscribe now to ensure uninterrupted service. Your remaining
+                  trial days are preserved — the paid month starts after your
+                  trial ends.
                 </p>
               )}
             </>
@@ -466,10 +475,35 @@ export default function BillingPage() {
                     Your subscription is active
                   </span>
                 </div>
-                <p className="mt-1 text-green-600">
-                  You have full access to all BookMe AI features. Your
-                  subscription renews automatically each month.
-                </p>
+                {subscription?.paidDuringTrial && subscription.trialEndsAt ? (
+                  <p className="mt-1 text-green-600">
+                    Your free trial continues until{" "}
+                    <strong>
+                      {new Date(subscription.trialEndsAt).toLocaleDateString(
+                        "en-US",
+                        { month: "long", day: "numeric", year: "numeric" }
+                      )}
+                    </strong>
+                    , then your paid month begins. Access runs through{" "}
+                    <strong>
+                      {subscription.currentPeriodEnd
+                        ? new Date(
+                            subscription.currentPeriodEnd
+                          ).toLocaleDateString("en-US", {
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                          })
+                        : "—"}
+                    </strong>
+                    .
+                  </p>
+                ) : (
+                  <p className="mt-1 text-green-600">
+                    You have full access to all BookMe AI features. Your
+                    subscription renews automatically each month.
+                  </p>
+                )}
               </div>
 
               <Button
