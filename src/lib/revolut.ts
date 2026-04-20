@@ -68,6 +68,44 @@ interface CreateOrderParams {
 export type RevolutOrderJson = Record<string, unknown>;
 
 /**
+ * Normalised order state for branching. The pay-order POST sometimes returns a
+ * slim payload without top-level `state`; the GET order then has full `state`
+ * or per-payment `state`. Use this instead of reading `order.state` alone.
+ */
+export function resolveRevolutOrderState(order: RevolutOrderJson): string {
+  const top = order.state;
+  if (typeof top === "string" && top.trim() !== "") {
+    return top.trim().toUpperCase();
+  }
+  const payments = order.payments;
+  if (Array.isArray(payments) && payments.length > 0) {
+    for (let i = payments.length - 1; i >= 0; i--) {
+      const p = payments[i];
+      if (p && typeof p === "object") {
+        const st = (p as Record<string, unknown>).state;
+        if (typeof st === "string" && st.trim() !== "") {
+          return st.trim().toUpperCase();
+        }
+      }
+    }
+  }
+  return "";
+}
+
+/** Order / payment reached a definitive failure (not a pending async state). */
+export function isTerminalRevolutFailureState(state: string): boolean {
+  if (!state) return false;
+  return (
+    state === "FAILED" ||
+    state === "CANCELLED" ||
+    state === "DECLINED" ||
+    state === "REJECTED" ||
+    state === "EXPIRED" ||
+    state === "PAYMENT_FAILED"
+  );
+}
+
+/**
  * Create-order response after validating the fields we rely on.
  * `public_id` is the token the browser passes to the Revolut Checkout widget.
  *

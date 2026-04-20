@@ -4,11 +4,17 @@ import {
   type RevolutSavedPaymentMethod,
   createRevolutOrder,
   extractSavedMethodFromOrder,
+  isTerminalRevolutFailureState,
   listRevolutPaymentMethods,
   payRevolutOrder,
+  resolveRevolutOrderState,
   retrieveRevolutOrder,
 } from "@/lib/revolut";
 import { activateSubscription } from "@/lib/subscription";
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function toInt(v: unknown): number | null {
   if (typeof v === "number" && Number.isFinite(v)) return Math.trunc(v);
@@ -236,26 +242,56 @@ export async function chargeSubscriptionRenewal(subscriptionId: string): Promise
     return recordFailure(subscriptionId, MAX_ATTEMPTS, RETRY_DELAY_MS, err);
   }
 
-  const state =
-    typeof payResult.state === "string" ? payResult.state.toUpperCase() : "";
+  // Pay POST may return PENDING or a slim body without top-level `state`; GET
+  // /api/orders/{id} usually has the full order shortly after. Poll so cron
+  // does not rely solely on webhooks for renewal finalisation.
+  const POLL_ATTEMPTS = 7;
+  const POLL_INTERVAL_MS = 2000;
+  let orderSnapshot: RevolutOrderJson = payResult;
 
-  if (state === "COMPLETED") {
-    await prisma.payment.update({
-      where: { revolutOrderId: order.id },
-      data: { status: "COMPLETED" },
-    });
-    await onOrderCompleted({
-      userId: sub.userId,
-      revolutOrderId: order.id,
-      sandbox,
-      order: payResult,
-    });
-    return { status: "charged" };
+  for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt++) {
+    if (attempt > 0) {
+      await sleep(POLL_INTERVAL_MS);
+      try {
+        orderSnapshot = await retrieveRevolutOrder(order.id, sandbox);
+      } catch {
+        continue;
+      }
+    }
+
+    const state = resolveRevolutOrderState(orderSnapshot);
+
+    if (state === "COMPLETED") {
+      await prisma.payment.update({
+        where: { revolutOrderId: order.id },
+        data: { status: "COMPLETED" },
+      });
+      await onOrderCompleted({
+        userId: sub.userId,
+        revolutOrderId: order.id,
+        sandbox,
+        order: orderSnapshot,
+      });
+      return { status: "charged" };
+    }
+
+    if (isTerminalRevolutFailureState(state)) {
+      await prisma.payment.update({
+        where: { revolutOrderId: order.id },
+        data: { status: "FAILED" },
+      });
+      return recordFailure(
+        subscriptionId,
+        MAX_ATTEMPTS,
+        RETRY_DELAY_MS,
+        new Error(`Revolut order state: ${state}`)
+      );
+    }
   }
 
-  // PENDING / AUTHORISED / anything else: leave Payment as PENDING and let the
-  // webhook finalise. Push nextChargeAt forward a little so the cron doesn't
-  // re-trigger this sub on the next run while we wait for confirmation.
+  // Still PENDING / PROCESSING / empty: leave Payment as PENDING and let the
+  // webhook finalise. Push nextChargeAt forward so the cron doesn't re-trigger
+  // this sub on the next run while we wait for confirmation.
   const waitUntil = new Date(Date.now() + 30 * 60 * 1000); // 30 min
   await prisma.subscription.update({
     where: { id: subscriptionId },
