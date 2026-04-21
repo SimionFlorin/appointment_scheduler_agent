@@ -287,6 +287,16 @@ export async function processWhatsAppMessage(
   messageBody: string,
   options?: { simulate?: boolean }
 ): Promise<string> {
+  console.log("[WA:agent] processWhatsAppMessage start", {
+    userId,
+    customerPhone,
+    simulate: !!options?.simulate,
+    bodyPreview:
+      messageBody.length > 100
+        ? `${messageBody.slice(0, 100)}…`
+        : messageBody,
+  });
+
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {
@@ -296,12 +306,28 @@ export async function processWhatsAppMessage(
   });
 
   if (!user || !user.businessProfile) {
+    console.error("[WA:agent] abort: user or businessProfile missing", {
+      userId,
+      hasUser: !!user,
+      hasBusinessProfile: !!user?.businessProfile,
+    });
     throw new Error("User not configured properly");
   }
 
   if (!options?.simulate && !user.whatsappConfig) {
+    console.error("[WA:agent] abort: WhatsApp not configured on user", {
+      userId,
+    });
     throw new Error("WhatsApp not configured");
   }
+
+  console.log("[WA:agent] user loaded", {
+    userId,
+    businessName: user.businessProfile.businessName,
+    llmProvider: user.llmProvider,
+    hasWhatsAppConfig: !!user.whatsappConfig,
+    whatsappProvider: user.whatsappConfig?.provider,
+  });
 
   const timezone = user.businessProfile.timezone;
 
@@ -322,6 +348,12 @@ export async function processWhatsAppMessage(
   });
 
   const recentMessages = existingMessages.slice(-10);
+
+  console.log("[WA:agent] conversation context", {
+    hadExistingConversation: !!conversation,
+    conversationId: conversation?.id,
+    historyTurns: recentMessages.length,
+  });
 
   // Build LangChain message history
   const chatHistory: BaseMessage[] = recentMessages.slice(0, -1).map((msg) =>
@@ -345,9 +377,13 @@ export async function processWhatsAppMessage(
     new HumanMessage(messageBody),
   ];
 
+  console.log("[WA:agent] invoking model (first pass)");
   let response = await model.invoke(messages);
 
   while (response.tool_calls && response.tool_calls.length > 0) {
+    console.log("[WA:agent] model requested tools", {
+      tools: response.tool_calls.map((c) => c.name),
+    });
     messages.push(response);
 
     const toolMessages = await Promise.all(
@@ -373,6 +409,7 @@ export async function processWhatsAppMessage(
     );
     messages.push(...toolMessages);
 
+    console.log("[WA:agent] invoking model (after tools)");
     response = await model.invoke(messages);
   }
 
@@ -391,6 +428,7 @@ export async function processWhatsAppMessage(
   const messagesJson = JSON.parse(JSON.stringify(recentMessages)) as any;
 
   if (conversation) {
+    console.log("[WA:agent] persisting: update conversation", conversation.id);
     await prisma.conversation.update({
       where: { id: conversation.id },
       data: {
@@ -400,6 +438,11 @@ export async function processWhatsAppMessage(
       },
     });
   } else {
+    console.log("[WA:agent] persisting: create conversation", {
+      userId,
+      customerPhone,
+      isTest: !!options?.simulate,
+    });
     await prisma.conversation.create({
       data: {
         userId,
@@ -412,6 +455,10 @@ export async function processWhatsAppMessage(
   }
 
   if (!options?.simulate && user.whatsappConfig) {
+    console.log("[WA:agent] sending outbound WhatsApp", {
+      provider: user.whatsappConfig.provider,
+      to: customerPhone,
+    });
     const whatsapp = getWhatsAppProvider(user.whatsappConfig.provider, {
       phoneNumberId: user.whatsappConfig.phoneNumberId || "",
       metaAccessToken: user.whatsappConfig.metaAccessToken || "",
@@ -424,7 +471,11 @@ export async function processWhatsAppMessage(
       to: customerPhone,
       body: assistantMessage,
     });
+    console.log("[WA:agent] outbound WhatsApp send OK");
+  } else {
+    console.log("[WA:agent] skip outbound (simulate or no whatsappConfig)");
   }
 
+  console.log("[WA:agent] processWhatsAppMessage done");
   return assistantMessage;
 }
