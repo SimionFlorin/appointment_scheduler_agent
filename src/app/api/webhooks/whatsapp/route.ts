@@ -64,6 +64,26 @@ async function handleMetaWebhook(request: NextRequest) {
     return NextResponse.json({ received: true }, { status: 200 });
   }
 
+   // NEW: log status updates (delivery receipts)
+   try {
+    const statuses = body?.entry?.[0]?.changes?.[0]?.value?.statuses;
+    if (Array.isArray(statuses) && statuses.length > 0) {
+      for (const s of statuses) {
+        console.log("[WA:meta] STATUS UPDATE", {
+          id: s.id,
+          status: s.status,
+          timestamp: s.timestamp,
+          recipient_id: s.recipient_id,
+          errors: s.errors,
+          conversation: s.conversation,
+          pricing: s.pricing,
+        });
+      }
+    }
+  } catch (e) {
+    console.warn("[WA:meta] could not log statuses", e);
+  }
+
   const parsed = parseMetaWebhookPayload(body);
   if (!parsed) {
     console.warn(
