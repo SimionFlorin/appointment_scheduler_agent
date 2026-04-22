@@ -78,6 +78,7 @@ async function handleMetaWebhook(request: NextRequest) {
           conversation: s.conversation,
           pricing: s.pricing,
         });
+        console.log("[WA:meta] STATUS UPDATE", JSON.stringify(s, null, 2));
       }
     }
   } catch (e) {
