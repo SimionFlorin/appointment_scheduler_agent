@@ -2,9 +2,17 @@ const REVOLUT_SANDBOX_URL =
   process.env.REVOLUT_SANDBOX_API_URL || "https://sandbox-merchant.revolut.com";
 const REVOLUT_SANDBOX_KEY = process.env.REVOLUT_SANDBOX_API_SECRET_KEY || "";
 
+// Prefer the explicit `_LIVE_` names so live and sandbox are symmetric in
+// Vercel; fall back to the older generic `REVOLUT_API_*` names so existing
+// deployments / local .envs keep working without a rename.
 const REVOLUT_LIVE_URL =
-  process.env.REVOLUT_API_URL || "https://merchant.revolut.com";
-const REVOLUT_LIVE_KEY = process.env.REVOLUT_API_SECRET_KEY || "";
+  process.env.REVOLUT_LIVE_API_URL ||
+  process.env.REVOLUT_API_URL ||
+  "https://merchant.revolut.com";
+const REVOLUT_LIVE_KEY =
+  process.env.REVOLUT_LIVE_SECRET_KEY ||
+  process.env.REVOLUT_API_SECRET_KEY ||
+  "";
 
 const API_VERSION = "2025-06-04";
 
@@ -43,7 +51,9 @@ function assertRevolutSecretConfigured(sandbox: boolean): void {
     );
   }
   throw new Error(
-    "Revolut live is selected but REVOLUT_API_SECRET_KEY is missing or empty."
+    "Revolut live is selected but neither REVOLUT_LIVE_SECRET_KEY nor " +
+      "REVOLUT_API_SECRET_KEY is set. Configure one of them with the live " +
+      "Merchant API secret from business.revolut.com."
   );
 }
 
@@ -178,7 +188,7 @@ export async function createRevolutOrder(
       response.status === 401
         ? sandbox
           ? " Check REVOLUT_SANDBOX_API_SECRET_KEY."
-          : " Check REVOLUT_API_SECRET_KEY (live Merchant API secret)."
+          : " Check REVOLUT_LIVE_SECRET_KEY / REVOLUT_API_SECRET_KEY (live Merchant API secret)."
         : "";
     throw new Error(`Revolut API error ${response.status}: ${text}${hint}`);
   }
@@ -223,7 +233,7 @@ export async function retrieveRevolutOrder(
       response.status === 401
         ? sandbox
           ? " Check REVOLUT_SANDBOX_API_SECRET_KEY."
-          : " Check REVOLUT_API_SECRET_KEY (live), or if this Payment row has the wrong isSandbox flag, fix or remove stale PENDING payments."
+          : " Check REVOLUT_LIVE_SECRET_KEY / REVOLUT_API_SECRET_KEY (live), or if this Payment row has the wrong isSandbox flag, fix or remove stale PENDING payments."
         : "";
     throw new Error(`Revolut API error ${response.status}: ${text}${hint}`);
   }
