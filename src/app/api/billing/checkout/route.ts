@@ -12,7 +12,7 @@ const PRICE_USD = 2000; // $20.00 in cents
 const PRICE_RON = 10000; // 100.00 RON in bani
 
 const DISCOUNT_CODES: Record<string, { priceUSD: number; priceRON: number }> = {
-  AQUATIQUE: { priceUSD: 300, priceRON: 1500 },
+  AQUATIQUE: { priceUSD: 50, priceRON: 100 },
 };
 
 export async function POST(req: Request) {
