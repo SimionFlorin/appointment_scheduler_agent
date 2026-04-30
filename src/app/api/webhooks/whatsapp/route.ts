@@ -3,8 +3,11 @@ import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { processWhatsAppMessage } from "@/lib/ai-agent";
 import {
+  claimMessageForProcessing,
+  filterFreshMessages,
   logMetaWebhookDiagnostics,
   parseMetaWebhookPayload,
+  type ParsedMetaMessage,
 } from "@/lib/whatsapp/meta-provider";
 import { parseTwilioWebhookPayload } from "@/lib/whatsapp/twilio-provider";
 
@@ -64,21 +67,22 @@ async function handleMetaWebhook(request: NextRequest) {
     return NextResponse.json({ received: true }, { status: 200 });
   }
 
-   // NEW: log status updates (delivery receipts)
-   try {
+  // Log status updates (delivery receipts) — surface failures loudly.
+  try {
     const statuses = body?.entry?.[0]?.changes?.[0]?.value?.statuses;
     if (Array.isArray(statuses) && statuses.length > 0) {
       for (const s of statuses) {
-        console.log("[WA:meta] STATUS UPDATE", {
+        const failed = s.status === "failed";
+        const log = failed ? console.error : console.log;
+        log(failed ? "[WA:meta] MESSAGE FAILED" : "[WA:meta] STATUS UPDATE", {
           id: s.id,
           status: s.status,
           timestamp: s.timestamp,
           recipient_id: s.recipient_id,
-          errors: s.errors,
-          conversation: s.conversation,
-          pricing: s.pricing,
+          errorCode: s.errors?.[0]?.code,
+          errorTitle: s.errors?.[0]?.title,
+          errorDetails: s.errors?.[0]?.error_data?.details,
         });
-        console.log("[WA:meta] STATUS UPDATE", JSON.stringify(s, null, 2));
       }
     }
   } catch (e) {
@@ -93,10 +97,20 @@ async function handleMetaWebhook(request: NextRequest) {
     return NextResponse.json({ received: true }, { status: 200 });
   }
 
+  // BUG FIX #1 — Drop stale messages from Meta's retry backlog. Without this,
+  // a message buffered for hours/days arrives long after the customer expects
+  // any reply and the bot answers a "ghost" conversation.
+  const freshMessages = filterFreshMessages(parsed.messages);
+  if (freshMessages.length === 0) {
+    console.log("[WA:meta] no fresh messages after age filter — acking");
+    return NextResponse.json({ received: true }, { status: 200 });
+  }
+
   console.log("[WA:meta] parsed inbound", {
     phoneNumberId: parsed.phoneNumberId,
-    messageCount: parsed.messages.length,
-    previews: parsed.messages.map((m) => ({
+    freshMessageCount: freshMessages.length,
+    droppedCount: parsed.messages.length - freshMessages.length,
+    previews: freshMessages.map((m) => ({
       from: m.from,
       id: m.id,
       body: truncate(m.body, 100),
@@ -125,30 +139,66 @@ async function handleMetaWebhook(request: NextRequest) {
     provider: config.provider,
   });
 
-  // Process each message after response — survives Vercel serverless return
-  for (const msg of parsed.messages) {
-    console.log("[WA:meta] scheduling processWhatsAppMessage", {
+  // BUG FIX #2 — Group messages by customer phone so each customer's history
+  // is read/written sequentially. Different customers still process in
+  // parallel (separate after() blocks), but two messages from the SAME
+  // customer cannot race each other and corrupt the conversation row.
+  const byCustomer = new Map<string, ParsedMetaMessage[]>();
+  for (const msg of freshMessages) {
+    const list = byCustomer.get(msg.from) ?? [];
+    list.push(msg);
+    byCustomer.set(msg.from, list);
+  }
+
+  for (const [customerPhone, msgs] of byCustomer) {
+    console.log("[WA:meta] scheduling customer batch", {
+      customerPhone,
+      messageCount: msgs.length,
       userId: config.userId,
-      from: msg.from,
-      body: truncate(msg.body, 100),
     });
+
+    // Process this customer's messages sequentially after we've returned 200.
     after(async () => {
-      console.log("[WA:meta] after() running processWhatsAppMessage", {
-        userId: config.userId,
-        from: msg.from,
-      });
-      try {
-        const reply = await processWhatsAppMessage(
-          config.userId,
-          msg.from,
-          msg.body
-        );
-        console.log("[WA:meta] after() processWhatsAppMessage OK", {
-          replyLength: reply.length,
-          replyPreview: truncate(reply, 160),
+      for (const msg of msgs) {
+        // BUG FIX #3 — Idempotency. Atomically claim the message ID.
+        // - "duplicate": another delivery already processed it → skip.
+        // - "error":     DB couldn't track it (e.g. table missing) → process
+        //                anyway (fail-open). Better one duplicate reply than
+        //                a silent bot.
+        const claim = await claimMessageForProcessing(msg.id);
+        if (claim === "duplicate") {
+          console.log("[WA:meta] skip duplicate message (already processed)", {
+            id: msg.id,
+            from: msg.from,
+          });
+          continue;
+        }
+
+        console.log("[WA:meta] after() processing message", {
+          userId: config.userId,
+          from: msg.from,
+          id: msg.id,
+          claim,
+          body: truncate(msg.body, 100),
         });
-      } catch (err) {
-        console.error("[WA:meta] after() processWhatsAppMessage FAILED", err);
+
+        try {
+          const reply = await processWhatsAppMessage(
+            config.userId,
+            msg.from,
+            msg.body
+          );
+          console.log("[WA:meta] after() processWhatsAppMessage OK", {
+            id: msg.id,
+            replyLength: reply.length,
+            replyPreview: truncate(reply, 160),
+          });
+        } catch (err) {
+          console.error("[WA:meta] after() processWhatsAppMessage FAILED", {
+            id: msg.id,
+            err,
+          });
+        }
       }
     });
   }

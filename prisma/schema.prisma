@@ -271,3 +271,14 @@ model Conversation {
   @@unique([userId, customerPhone])
   @@index([userId])
 }
+
+// Tracks WhatsApp message IDs we've already processed so Meta retries
+// (or duplicate webhook deliveries) cannot trigger duplicate replies.
+// Rows are kept for a short window — clean up periodically if needed.
+model ProcessedMessage {
+  id          String   @id @default(cuid())
+  messageId   String   @unique
+  processedAt DateTime @default(now())
+
+  @@index([processedAt])
+}
