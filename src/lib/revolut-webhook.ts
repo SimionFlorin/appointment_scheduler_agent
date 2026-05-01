@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { activateSubscription } from "@/lib/subscription";
+import { onOrderCompleted } from "@/lib/revolut-autopay";
 
 const TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000;
 
@@ -56,15 +57,27 @@ export async function handleRevolutWebhook(
     }
   }
 
-  const payload = JSON.parse(rawBody);
-  const { event, order_id } = payload;
+  const rawPayload = JSON.parse(rawBody) as Record<string, unknown>;
+  const event =
+    typeof rawPayload.event === "string" ? rawPayload.event : "unknown";
+  const order_id =
+    typeof rawPayload.order_id === "string"
+      ? rawPayload.order_id
+      : undefined;
+
+  if (process.env.NODE_ENV === "development") {
+    console.log(
+      `[revolut-webhook/${source}] incoming payload:`,
+      JSON.stringify(rawPayload, null, 2)
+    );
+  }
 
   await prisma.webhookEvent.create({
     data: {
       source,
       event,
       orderId: order_id ?? null,
-      payload,
+      payload: rawPayload as Prisma.InputJsonValue,
     },
   });
 
@@ -76,18 +89,22 @@ export async function handleRevolutWebhook(
 
   switch (event) {
     case "ORDER_COMPLETED": {
-      if (payment) {
+      if (payment && order_id) {
         await prisma.payment.update({
           where: { revolutOrderId: order_id },
           data: { status: "COMPLETED" },
         });
-        await activateSubscription(payment.userId, order_id);
+        await onOrderCompleted({
+          userId: payment.userId,
+          revolutOrderId: order_id,
+          sandbox,
+        });
       }
       break;
     }
 
     case "ORDER_AUTHORISED": {
-      if (payment && payment.status === "PENDING") {
+      if (payment && payment.status === "PENDING" && order_id) {
         await prisma.payment.update({
           where: { revolutOrderId: order_id },
           data: { status: "AUTHORISED" },
@@ -98,7 +115,7 @@ export async function handleRevolutWebhook(
 
     case "ORDER_PAYMENT_FAILED":
     case "ORDER_PAYMENT_DECLINED": {
-      if (payment) {
+      if (payment && order_id) {
         await prisma.payment.update({
           where: { revolutOrderId: order_id },
           data: { status: "FAILED" },
@@ -108,7 +125,7 @@ export async function handleRevolutWebhook(
     }
 
     case "ORDER_CANCELLED": {
-      if (payment) {
+      if (payment && order_id) {
         await prisma.payment.update({
           where: { revolutOrderId: order_id },
           data: { status: "CANCELLED" },

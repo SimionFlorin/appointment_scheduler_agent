@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -41,23 +40,24 @@ interface SubscriptionInfo {
 }
 
 const VALID_DISCOUNTS: Record<string, { usd: number; ron: number }> = {
-  AQUATIQUE: { usd: 3, ron: 15 },
+  AQUATIQUE: { usd: 0.5, ron: 1 },
 };
 
 export default function BillingPage() {
-  const searchParams = useSearchParams();
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(
     null
   );
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [activating, setActivating] = useState(false);
   const [currency, setCurrency] = useState<"USD" | "RON">("USD");
 
   const [discountCode, setDiscountCode] = useState("");
   const [appliedDiscount, setAppliedDiscount] = useState<string | null>(null);
   const [discountError, setDiscountError] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
+
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchSubscription = useCallback(async () => {
     const res = await fetch("/api/billing/status");
@@ -71,20 +71,27 @@ export default function BillingPage() {
   }, [fetchSubscription]);
 
   useEffect(() => {
-    if (searchParams.get("status") === "success") {
-      toast.success("Payment received! Activating your subscription...");
-      const interval = setInterval(async () => {
-        const res = await fetch("/api/billing/status");
-        const data = await res.json();
-        setSubscription(data.subscription);
-        if (data.subscription.status === "active") {
-          clearInterval(interval);
-          toast.success("Subscription activated successfully!");
-        }
-      }, 3000);
-      return () => clearInterval(interval);
-    }
-  }, [searchParams]);
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    };
+  }, []);
+
+  const startActivationPolling = useCallback(() => {
+    setActivating(true);
+    toast.success("Payment received! Activating your subscription...");
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    pollIntervalRef.current = setInterval(async () => {
+      const res = await fetch("/api/billing/status");
+      const data = await res.json();
+      setSubscription(data.subscription);
+      if (data.subscription?.status === "active") {
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+        setActivating(false);
+        toast.success("Subscription activated successfully!");
+      }
+    }, 3000);
+  }, []);
 
   function handleApplyDiscount() {
     const code = discountCode.trim().toUpperCase();
@@ -120,10 +127,6 @@ export default function BillingPage() {
     return currency === "USD" ? "$20" : "100 RON";
   }
 
-  const testCardNumber = process.env.NEXT_PUBLIC_REVOLUT_TEST_CARD_NUMBER || "";
-  const isSandbox =
-    testCardNumber && cardNumber.replace(/\s/g, "") === testCardNumber;
-
   async function handleCheckout() {
     setCheckoutLoading(true);
     try {
@@ -133,20 +136,48 @@ export default function BillingPage() {
         body: JSON.stringify({
           currency,
           discountCode: appliedDiscount,
-          cardNumber: cardNumber.replace(/\s/g, ""),
         }),
       });
 
-      const data = await res.json();
+      const data = (await res.json()) as
+        | { publicId: string; isSandbox: boolean }
+        | { error: string };
 
-      if (!res.ok) {
-        toast.error(data.error || "Failed to create checkout");
+      if (!res.ok || !("publicId" in data)) {
+        toast.error(
+          "error" in data && data.error
+            ? data.error
+            : "Failed to create checkout"
+        );
         return;
       }
 
-      window.location.href = data.checkoutUrl;
-    } catch {
-      toast.error("Something went wrong");
+      const { default: RevolutCheckout } = await import("@revolut/checkout");
+      const instance = await RevolutCheckout(
+        data.publicId,
+        data.isSandbox ? "sandbox" : "prod"
+      );
+
+      instance.payWithPopup({
+        savePaymentMethodFor: "merchant",
+        onSuccess: () => {
+          instance.destroy();
+          startActivationPolling();
+        },
+        onError: (error) => {
+          instance.destroy();
+          console.error("[revolut-widget] payment error:", error);
+          const detail = [error.type, error.message].filter(Boolean).join(" — ");
+          toast.error(detail || "Payment failed. Please try again.");
+        },
+        onCancel: () => {
+          instance.destroy();
+        },
+      });
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Something went wrong"
+      );
     } finally {
       setCheckoutLoading(false);
     }
@@ -416,35 +447,21 @@ export default function BillingPage() {
                 )}
               </div>
 
-              {/* Card number (determines sandbox vs live) */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5 text-sm">
-                  <CreditCard className="h-3.5 w-3.5" />
-                  Card Number
-                </Label>
-                <Input
-                  placeholder="Enter your card number"
-                  value={cardNumber}
-                  onChange={(e) => setCardNumber(e.target.value)}
-                  maxLength={19}
-                />
-                {isSandbox && (
-                  <p className="text-xs text-amber-600">
-                    Test card detected — sandbox mode will be used
-                  </p>
-                )}
-              </div>
-
               <Button
                 className="w-full"
                 size="lg"
                 onClick={handleCheckout}
-                disabled={checkoutLoading}
+                disabled={checkoutLoading || activating}
               >
                 {checkoutLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating checkout...
+                    Opening checkout...
+                  </>
+                ) : activating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Activating subscription...
                   </>
                 ) : (
                   <>
@@ -536,8 +553,9 @@ export default function BillingPage() {
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground space-y-2">
           <p>
-            We use Revolut&apos;s secure hosted checkout for all payments. Your
-            card details are never stored on our servers.
+            Payments are collected through Revolut&apos;s secure checkout
+            widget. Your card details are entered directly into Revolut and
+            never touch our servers.
           </p>
           <p>
             Accepted methods: Visa, Mastercard, Revolut Pay, Apple Pay, Google

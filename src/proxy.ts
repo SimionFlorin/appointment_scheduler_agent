@@ -15,7 +15,9 @@ export default auth((req) => {
     ) ||
     (pathname.startsWith("/api") &&
       !pathname.startsWith("/api/auth") &&
-      !pathname.startsWith("/api/webhooks"));
+      !pathname.startsWith("/api/webhooks") &&
+      !pathname.startsWith("/api/cron")
+    );
 
   if (!needsAuth) return NextResponse.next();
 

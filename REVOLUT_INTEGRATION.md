@@ -56,9 +56,13 @@ BookMe AI now includes subscription billing powered by Revolut's Hosted Checkout
 Added to `.env` and `.env.example`:
 
 ```
-REVOLUT_API_URL=https://sandbox-merchant.revolut.com
-REVOLUT_API_SECRET_KEY=your-revolut-secret-key
-REVOLUT_API_PUBLIC_KEY=your-revolut-public-key
+# Live keys (used when NODE_ENV=production or REVOLUT_USE_LIVE=1)
+REVOLUT_API_SECRET_KEY=your-revolut-live-secret-key
+REVOLUT_API_PUBLIC_KEY=your-revolut-live-public-key
+
+# Sandbox keys (used in dev)
+REVOLUT_SANDBOX_API_SECRET_KEY=your-revolut-sandbox-secret-key
+REVOLUT_SANDBOX_API_PUBLIC_KEY=your-revolut-sandbox-public-key
 ```
 
 ---
@@ -75,7 +79,7 @@ REVOLUT_API_PUBLIC_KEY=your-revolut-public-key
 - [ ] In the sandbox dashboard, go to **Settings → Merchant API**
 - [ ] Generate a **Secret API key** (starts with `sk_`)
 - [ ] Generate or note the **Public API key** (starts with `pk_`)
-- [ ] Copy both keys into your `.env` file as `REVOLUT_API_SECRET_KEY` and `REVOLUT_API_PUBLIC_KEY`
+- [ ] Copy both keys into your `.env` file as `REVOLUT_SANDBOX_API_SECRET_KEY` and `REVOLUT_SANDBOX_API_PUBLIC_KEY`
 
 ### 3. Set Up Webhooks (Sandbox)
 
@@ -113,8 +117,8 @@ When ready to go live:
 - [ ] Complete business verification (KYC)
 - [ ] Generate production API keys
 - [ ] Set up production webhooks pointing to your live domain
-- [ ] Change `REVOLUT_API_URL` to `https://merchant.revolut.com`
-- [ ] Replace all API keys with production keys
+- [ ] Put the production secret + public keys into `REVOLUT_API_SECRET_KEY` / `REVOLUT_API_PUBLIC_KEY`
+- [ ] Set `REVOLUT_USE_LIVE=1` (or ensure `NODE_ENV=production`) so the app selects the live keys
 - [ ] Test a real payment with a small amount
 - [ ] **Important:** Remove any test/sandbox references from your environment
 

@@ -45,6 +45,37 @@ export function verifyWebhookSignature(
   return `sha256=${expectedSignature}` === signature;
 }
 
+/** Verbose diagnostics for Vercel/Meta webhook debugging (prefix logs with grep `[WA]`). */
+export function logMetaWebhookDiagnostics(body: Record<string, unknown>): void {
+  try {
+    const obj = body.object;
+    const entries = (body.entry as Array<Record<string, unknown>>) || [];
+    const entry0 = entries[0];
+    const changes = (entry0?.changes as Array<Record<string, unknown>>) || [];
+    const ch0 = changes[0];
+    const field = ch0?.field as string | undefined;
+    const value = ch0?.value as Record<string, unknown> | undefined;
+    const metadata = value?.metadata as Record<string, string> | undefined;
+    const phoneNumberId = metadata?.phone_number_id;
+    const rawMessages = (value?.messages as Array<Record<string, unknown>>) || [];
+    const statuses = (value?.statuses as Array<Record<string, unknown>>) || [];
+    const types = rawMessages.map((m) => String(m.type ?? "?")).join(", ");
+
+    console.log("[WA:meta] diagnostics", {
+      object: obj,
+      entryCount: entries.length,
+      firstChangeField: field,
+      phone_number_id: phoneNumberId ?? "(missing)",
+      rawMessageCount: rawMessages.length,
+      rawMessageTypes: types || "(none)",
+      textAfterFilterWouldBe: rawMessages.filter((m) => m.type === "text").length,
+      statusCount: statuses.length,
+    });
+  } catch (e) {
+    console.error("[WA:meta] diagnostics parse error", e);
+  }
+}
+
 export function parseMetaWebhookPayload(body: Record<string, unknown>): {
   phoneNumberId: string;
   messages: { from: string; body: string; id: string; timestamp: string }[];
