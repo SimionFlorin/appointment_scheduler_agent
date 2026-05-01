@@ -40,7 +40,7 @@ interface SubscriptionInfo {
 }
 
 const VALID_DISCOUNTS: Record<string, { usd: number; ron: number }> = {
-  AQUATIQUE: { usd: 3, ron: 15 },
+  AQUATIQUE: { usd: 0.5, ron: 1 },
 };
 
 export default function BillingPage() {
