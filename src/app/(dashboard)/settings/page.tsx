@@ -22,6 +22,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { signOut } from "next-auth/react";
 import { toast } from "sonner";
 import { TimezoneSelect } from "@/components/timezone-select";
@@ -76,15 +77,21 @@ export default function SettingsPage() {
   const [aiProvider, setAiProvider] = useState<"GEMINI" | "OPENAI">("GEMINI");
   const [aiProviderSaving, setAiProviderSaving] = useState(false);
 
+  // Auto Reply
+  const [autoReplyEnabled, setAutoReplyEnabled] = useState(true);
+  const [autoReplySaving, setAutoReplySaving] = useState(false);
+
   useEffect(() => {
     Promise.all([
       fetch("/api/settings/profile").then((r) => r.json()),
       fetch("/api/whatsapp/connect").then((r) => r.json()),
       fetch("/api/settings/ai-provider").then((r) => r.json()),
-    ]).then(([profileData, waData, aiData]) => {
+      fetch("/api/settings/auto-reply").then((r) => r.json()),
+    ]).then(([profileData, waData, aiData, autoReplyData]) => {
       setProfile(profileData.profile || null);
       setWaStatus(waData.config || null);
       setAiProvider(aiData.provider || "GEMINI");
+      setAutoReplyEnabled(autoReplyData.autoReplyEnabled ?? true);
       setLoading(false);
     });
   }, []);
@@ -146,6 +153,25 @@ export default function SettingsPage() {
       toast.error("Something went wrong");
     } finally {
       setAiProviderSaving(false);
+    }
+  }
+
+  async function toggleAutoReply(enabled: boolean) {
+    setAutoReplyEnabled(enabled);
+    setAutoReplySaving(true);
+    try {
+      const res = await fetch("/api/settings/auto-reply", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autoReplyEnabled: enabled }),
+      });
+      if (res.ok) toast.success(enabled ? "AI auto-reply enabled" : "AI auto-reply disabled");
+      else toast.error("Failed to update auto-reply setting");
+    } catch {
+      toast.error("Something went wrong");
+      setAutoReplyEnabled(!enabled);
+    } finally {
+      setAutoReplySaving(false);
     }
   }
 
@@ -450,6 +476,44 @@ export default function SettingsPage() {
 
         {/* Account */}
         <TabsContent value="account" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>AI Auto-Reply</CardTitle>
+              <CardDescription>
+                Control whether the AI agent automatically responds to incoming
+                WhatsApp messages
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="auto-reply-toggle" className="text-sm font-medium">
+                    Automatic AI replies
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {autoReplyEnabled
+                      ? "The AI agent will process incoming messages, check your calendar, and reply automatically."
+                      : "Incoming messages will be received and stored, but the AI will not reply. You can reply manually from the Conversations page."}
+                  </p>
+                </div>
+                <Switch
+                  id="auto-reply-toggle"
+                  checked={autoReplyEnabled}
+                  onCheckedChange={toggleAutoReply}
+                  disabled={autoReplySaving}
+                />
+              </div>
+              {!autoReplyEnabled && (
+                <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
+                  AI auto-reply is off. Incoming WhatsApp messages will still be
+                  received and visible in Conversations, but no AI processing,
+                  calendar lookups, or automatic replies will occur. Use the
+                  Conversations page to send manual replies.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>AI Provider</CardTitle>

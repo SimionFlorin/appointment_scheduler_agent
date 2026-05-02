@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toZonedTime } from "date-fns-tz";
 import { format } from "date-fns";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Send, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 
 interface ConversationMessage {
   role: "customer" | "assistant";
@@ -26,17 +29,92 @@ export default function ConversationsPage() {
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(true);
   const [timezone, setTimezone] = useState<string>("America/New_York");
+  const [replyText, setReplyText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    Promise.all([
+  const loadConversations = useCallback(async () => {
+    const [data, tzData] = await Promise.all([
       fetch("/api/conversations").then((r) => r.json()),
       fetch("/api/user/timezone").then((r) => r.json()),
-    ]).then(([data, tzData]) => {
-      setConversations(data);
-      setTimezone(tzData.timezone || "America/New_York");
-      setLoading(false);
-    });
+    ]);
+    setConversations(data);
+    setTimezone(tzData.timezone || "America/New_York");
+    return data as Conversation[];
   }, []);
+
+  useEffect(() => {
+    loadConversations().then(() => setLoading(false));
+  }, [loadConversations]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [selected?.messages]);
+
+  async function refreshConversations() {
+    setRefreshing(true);
+    try {
+      const data = await loadConversations();
+      if (selected) {
+        const updated = data.find((c: Conversation) => c.id === selected.id);
+        if (updated) setSelected(updated);
+      }
+      toast.success("Conversations refreshed");
+    } catch {
+      toast.error("Failed to refresh");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function sendReply() {
+    if (!selected || !replyText.trim() || sending) return;
+
+    const text = replyText.trim();
+    setSending(true);
+
+    try {
+      const res = await fetch("/api/conversations/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerPhone: selected.customerPhone,
+          message: text,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "Failed to send message");
+        return;
+      }
+
+      const newMsg: ConversationMessage = {
+        role: "assistant",
+        content: text,
+        timestamp: new Date().toISOString(),
+      };
+      const updatedSelected = {
+        ...selected,
+        messages: [...selected.messages, newMsg],
+        lastMessageAt: new Date().toISOString(),
+      };
+      setSelected(updatedSelected);
+      setConversations((prev) =>
+        prev.map((c) => (c.id === selected.id ? updatedSelected : c))
+      );
+      setReplyText("");
+      toast.success("Message sent");
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setSending(false);
+    }
+  }
 
   function formatInBizTz(dateStr: string, fmt: string) {
     return format(toZonedTime(new Date(dateStr), timezone), fmt);
@@ -50,16 +128,27 @@ export default function ConversationsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Conversations</h1>
-        <p className="text-muted-foreground">
-          WhatsApp conversations handled by the AI agent
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Conversations</h1>
+          <p className="text-muted-foreground">
+            WhatsApp conversations — view messages and reply manually
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={refreshConversations}
+          disabled={refreshing}
+        >
+          <RefreshCw className={`h-4 w-4 mr-1.5 ${refreshing ? "animate-spin" : ""}`} />
+          {refreshing ? "Refreshing..." : "Refresh"}
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-[300px_1fr]">
         {/* Conversation list */}
-        <div className="space-y-2">
+        <div className="space-y-2 max-h-[600px] overflow-y-auto">
           {conversations.length === 0 ? (
             <Card>
               <CardContent className="py-10 text-center text-muted-foreground">
@@ -104,15 +193,15 @@ export default function ConversationsPage() {
         </div>
 
         {/* Chat view */}
-        <Card className="min-h-[500px]">
-          <CardContent className="p-4">
+        <Card className="flex flex-col min-h-[500px]">
+          <CardContent className="flex flex-col flex-1 p-0 overflow-hidden">
             {!selected ? (
-              <div className="flex items-center justify-center h-full min-h-[460px] text-muted-foreground">
+              <div className="flex items-center justify-center h-full min-h-[460px] text-muted-foreground p-4">
                 Select a conversation to view messages
               </div>
             ) : (
-              <div className="space-y-3">
-                <div className="border-b pb-3 mb-3">
+              <>
+                <div className="border-b p-4 pb-3">
                   <p className="font-semibold">
                     {selected.customerName || selected.customerPhone}
                   </p>
@@ -120,7 +209,10 @@ export default function ConversationsPage() {
                     {selected.customerPhone}
                   </p>
                 </div>
-                <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                <div
+                  ref={scrollRef}
+                  className="flex-1 overflow-y-auto p-4 space-y-3"
+                >
                   {selected.messages.map((msg, i) => (
                     <div
                       key={i}
@@ -149,7 +241,27 @@ export default function ConversationsPage() {
                     </div>
                   ))}
                 </div>
-              </div>
+                <div className="border-t p-3 flex gap-2">
+                  <Input
+                    placeholder="Type a reply..."
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        sendReply();
+                      }
+                    }}
+                    disabled={sending}
+                  />
+                  <Button
+                    onClick={sendReply}
+                    disabled={sending || !replyText.trim()}
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>

@@ -479,3 +479,131 @@ export async function processWhatsAppMessage(
   console.log("[WA:agent] processWhatsAppMessage done");
   return assistantMessage;
 }
+
+export async function storeIncomingMessage(
+  userId: string,
+  customerPhone: string,
+  messageBody: string
+): Promise<void> {
+  console.log("[WA:store] storeIncomingMessage (auto-reply disabled)", {
+    userId,
+    customerPhone,
+    bodyPreview:
+      messageBody.length > 100
+        ? `${messageBody.slice(0, 100)}…`
+        : messageBody,
+  });
+
+  const newMsg: ConversationMessage = {
+    role: "customer",
+    content: messageBody,
+    timestamp: new Date().toISOString(),
+  };
+
+  const conversation = await prisma.conversation.findUnique({
+    where: {
+      userId_customerPhone: { userId, customerPhone },
+    },
+  });
+
+  if (conversation) {
+    const existing = conversation.messages as unknown as ConversationMessage[];
+    existing.push(newMsg);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const messagesJson = JSON.parse(JSON.stringify(existing.slice(-50))) as any;
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: {
+        messages: messagesJson,
+        lastMessageAt: new Date(),
+      },
+    });
+  } else {
+    await prisma.conversation.create({
+      data: {
+        userId,
+        customerPhone,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        messages: [newMsg] as any,
+        lastMessageAt: new Date(),
+      },
+    });
+  }
+
+  console.log("[WA:store] message stored");
+}
+
+export async function sendManualMessage(
+  userId: string,
+  customerPhone: string,
+  messageBody: string
+): Promise<void> {
+  console.log("[WA:manual] sendManualMessage", {
+    userId,
+    customerPhone,
+    bodyPreview:
+      messageBody.length > 100
+        ? `${messageBody.slice(0, 100)}…`
+        : messageBody,
+  });
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { whatsappConfig: true },
+  });
+
+  if (!user?.whatsappConfig) {
+    throw new Error("WhatsApp not configured");
+  }
+
+  const whatsapp = getWhatsAppProvider(user.whatsappConfig.provider, {
+    phoneNumberId: user.whatsappConfig.phoneNumberId || "",
+    metaAccessToken: user.whatsappConfig.metaAccessToken || "",
+    twilioAccountSid: user.whatsappConfig.twilioAccountSid || "",
+    twilioAuthToken: user.whatsappConfig.twilioAuthToken || "",
+    twilioPhoneNumber: user.whatsappConfig.twilioPhoneNumber || "",
+  });
+
+  await whatsapp.sendMessage({
+    to: customerPhone,
+    body: messageBody,
+  });
+
+  const newMsg: ConversationMessage = {
+    role: "assistant",
+    content: messageBody,
+    timestamp: new Date().toISOString(),
+  };
+
+  const conversation = await prisma.conversation.findUnique({
+    where: {
+      userId_customerPhone: { userId, customerPhone },
+    },
+  });
+
+  if (conversation) {
+    const existing = conversation.messages as unknown as ConversationMessage[];
+    existing.push(newMsg);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const messagesJson = JSON.parse(JSON.stringify(existing.slice(-50))) as any;
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: {
+        messages: messagesJson,
+        lastMessageAt: new Date(),
+      },
+    });
+  } else {
+    await prisma.conversation.create({
+      data: {
+        userId,
+        customerPhone,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        messages: [newMsg] as any,
+        lastMessageAt: new Date(),
+      },
+    });
+  }
+
+  console.log("[WA:manual] message sent and stored");
+}
