@@ -25,6 +25,7 @@ import {
 import { signOut } from "next-auth/react";
 import { toast } from "sonner";
 import { TimezoneSelect } from "@/components/timezone-select";
+import { Switch } from "@/components/ui/switch";
 
 const DAYS = [
   "monday",
@@ -76,15 +77,21 @@ export default function SettingsPage() {
   const [aiProvider, setAiProvider] = useState<"GEMINI" | "OPENAI">("GEMINI");
   const [aiProviderSaving, setAiProviderSaving] = useState(false);
 
+  // AI Auto Reply
+  const [autoReplyEnabled, setAutoReplyEnabled] = useState<boolean>(true);
+  const [autoReplySaving, setAutoReplySaving] = useState(false);
+
   useEffect(() => {
     Promise.all([
       fetch("/api/settings/profile").then((r) => r.json()),
       fetch("/api/whatsapp/connect").then((r) => r.json()),
       fetch("/api/settings/ai-provider").then((r) => r.json()),
-    ]).then(([profileData, waData, aiData]) => {
+      fetch("/api/settings/auto-reply").then((r) => r.json()),
+    ]).then(([profileData, waData, aiData, autoReplyData]) => {
       setProfile(profileData.profile || null);
       setWaStatus(waData.config || null);
       setAiProvider(aiData.provider || "GEMINI");
+      setAutoReplyEnabled(autoReplyData.enabled ?? true);
       setLoading(false);
     });
   }, []);
@@ -129,6 +136,32 @@ export default function SettingsPage() {
   function updateHours(day: string, field: "Start" | "End", value: string) {
     if (!profile) return;
     setProfile({ ...profile, [`${day}${field}`]: value || null });
+  }
+
+  async function saveAutoReply(enabled: boolean) {
+    const previous = autoReplyEnabled;
+    setAutoReplyEnabled(enabled);
+    setAutoReplySaving(true);
+    try {
+      const res = await fetch("/api/settings/auto-reply", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      if (res.ok) {
+        toast.success(
+          enabled ? "AI auto-reply enabled" : "AI auto-reply disabled"
+        );
+      } else {
+        setAutoReplyEnabled(previous);
+        toast.error("Failed to update setting");
+      }
+    } catch {
+      setAutoReplyEnabled(previous);
+      toast.error("Something went wrong");
+    } finally {
+      setAutoReplySaving(false);
+    }
   }
 
   async function saveAiProvider(provider: "GEMINI" | "OPENAI") {
@@ -452,6 +485,44 @@ export default function SettingsPage() {
         <TabsContent value="account" className="space-y-4">
           <Card>
             <CardHeader>
+              <CardTitle>Automatic AI Replies</CardTitle>
+              <CardDescription>
+                Choose how the app handles incoming WhatsApp messages.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="space-y-1 pr-4">
+                  <p className="text-sm font-medium leading-none">
+                    AI auto-reply is{" "}
+                    <span
+                      className={
+                        autoReplyEnabled
+                          ? "text-green-600"
+                          : "text-muted-foreground"
+                      }
+                    >
+                      {autoReplyEnabled ? "on" : "off"}
+                    </span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {autoReplyEnabled
+                      ? "Incoming WhatsApp messages are answered automatically by the AI scheduling agent. Calendar, services and business hours are looked up to compose each reply."
+                      : "Incoming WhatsApp messages are recorded but no AI reply is generated. No calendar, services or business-hours lookups happen. Reply to your customers manually from the Conversations page."}
+                  </p>
+                </div>
+                <Switch
+                  checked={autoReplyEnabled}
+                  onCheckedChange={saveAutoReply}
+                  disabled={autoReplySaving}
+                  aria-label="Toggle AI auto-reply"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>AI Provider</CardTitle>
               <CardDescription>
                 Choose which AI model powers your scheduling assistant
@@ -481,6 +552,12 @@ export default function SettingsPage() {
                   ? "Using Google Gemini 3.1 Flash Lite Preview. Requires GEMINI_API_KEY in your environment."
                   : "Using OpenAI GPT-5 Mini. Requires OPENAI_API_KEY in your environment."}
               </p>
+              {!autoReplyEnabled && (
+                <p className="text-xs text-muted-foreground italic">
+                  AI auto-reply is currently off — the provider above is only
+                  used when auto-reply is re-enabled.
+                </p>
+              )}
             </CardContent>
           </Card>
 

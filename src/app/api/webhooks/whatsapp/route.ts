@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { processWhatsAppMessage } from "@/lib/ai-agent";
+import {
+  processWhatsAppMessage,
+  recordIncomingCustomerMessage,
+} from "@/lib/ai-agent";
 import {
   logMetaWebhookDiagnostics,
   parseMetaWebhookPayload,
@@ -125,8 +128,42 @@ async function handleMetaWebhook(request: NextRequest) {
     provider: config.provider,
   });
 
+  const owner = await prisma.user.findUnique({
+    where: { id: config.userId },
+    select: { aiAutoReplyEnabled: true },
+  });
+  const autoReplyEnabled = owner?.aiAutoReplyEnabled ?? true;
+  console.log("[WA:meta] aiAutoReplyEnabled", { autoReplyEnabled });
+
   // Process each message after response — survives Vercel serverless return
   for (const msg of parsed.messages) {
+    if (!autoReplyEnabled) {
+      console.log(
+        "[WA:meta] auto-reply disabled — recording inbound message only",
+        {
+          userId: config.userId,
+          from: msg.from,
+          body: truncate(msg.body, 100),
+        }
+      );
+      after(async () => {
+        try {
+          await recordIncomingCustomerMessage(
+            config.userId,
+            msg.from,
+            msg.body
+          );
+          console.log("[WA:meta] after() recordIncomingCustomerMessage OK");
+        } catch (err) {
+          console.error(
+            "[WA:meta] after() recordIncomingCustomerMessage FAILED",
+            err
+          );
+        }
+      });
+      continue;
+    }
+
     console.log("[WA:meta] scheduling processWhatsAppMessage", {
       userId: config.userId,
       from: msg.from,
@@ -193,22 +230,56 @@ async function handleTwilioWebhook(request: NextRequest) {
   }
 
   console.log("[WA:twilio] resolved user", { userId: config.userId });
-  after(async () => {
-    console.log("[WA:twilio] after() running processWhatsAppMessage");
-    try {
-      const reply = await processWhatsAppMessage(
-        config.userId,
-        parsed.from,
-        parsed.body
-      );
-      console.log("[WA:twilio] after() OK", {
-        replyLength: reply.length,
-        replyPreview: truncate(reply, 160),
-      });
-    } catch (err) {
-      console.error("[WA:twilio] after() FAILED", err);
-    }
+
+  const owner = await prisma.user.findUnique({
+    where: { id: config.userId },
+    select: { aiAutoReplyEnabled: true },
   });
+  const autoReplyEnabled = owner?.aiAutoReplyEnabled ?? true;
+  console.log("[WA:twilio] aiAutoReplyEnabled", { autoReplyEnabled });
+
+  if (!autoReplyEnabled) {
+    console.log(
+      "[WA:twilio] auto-reply disabled — recording inbound message only",
+      {
+        userId: config.userId,
+        from: parsed.from,
+        body: truncate(parsed.body, 100),
+      }
+    );
+    after(async () => {
+      try {
+        await recordIncomingCustomerMessage(
+          config.userId,
+          parsed.from,
+          parsed.body
+        );
+        console.log("[WA:twilio] after() recordIncomingCustomerMessage OK");
+      } catch (err) {
+        console.error(
+          "[WA:twilio] after() recordIncomingCustomerMessage FAILED",
+          err
+        );
+      }
+    });
+  } else {
+    after(async () => {
+      console.log("[WA:twilio] after() running processWhatsAppMessage");
+      try {
+        const reply = await processWhatsAppMessage(
+          config.userId,
+          parsed.from,
+          parsed.body
+        );
+        console.log("[WA:twilio] after() OK", {
+          replyLength: reply.length,
+          replyPreview: truncate(reply, 160),
+        });
+      } catch (err) {
+        console.error("[WA:twilio] after() FAILED", err);
+      }
+    });
+  }
 
   // Twilio expects TwiML or empty 200
   return new Response("<Response></Response>", {

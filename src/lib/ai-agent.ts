@@ -281,6 +281,59 @@ function createTools(
   ];
 }
 
+/**
+ * Append an incoming customer message to the (userId, customerPhone) Conversation
+ * row WITHOUT triggering the AI/calendar/services pipeline. Used when the user
+ * has disabled automatic AI replies — we still want a record of inbound messages
+ * so the owner can reply manually from the Conversations dashboard.
+ */
+export async function recordIncomingCustomerMessage(
+  userId: string,
+  customerPhone: string,
+  messageBody: string
+): Promise<void> {
+  console.log("[WA:agent] recordIncomingCustomerMessage (AI disabled)", {
+    userId,
+    customerPhone,
+  });
+
+  const conversation = await prisma.conversation.findUnique({
+    where: { userId_customerPhone: { userId, customerPhone } },
+  });
+
+  const existingMessages: ConversationMessage[] = conversation
+    ? (conversation.messages as unknown as ConversationMessage[])
+    : [];
+
+  existingMessages.push({
+    role: "customer",
+    content: messageBody,
+    timestamp: new Date().toISOString(),
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const messagesJson = JSON.parse(JSON.stringify(existingMessages)) as any;
+
+  if (conversation) {
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: {
+        messages: messagesJson,
+        lastMessageAt: new Date(),
+      },
+    });
+  } else {
+    await prisma.conversation.create({
+      data: {
+        userId,
+        customerPhone,
+        messages: messagesJson,
+        lastMessageAt: new Date(),
+      },
+    });
+  }
+}
+
 export async function processWhatsAppMessage(
   userId: string,
   customerPhone: string,
