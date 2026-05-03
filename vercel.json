@@ -3,17 +3,12 @@
   "framework": "nextjs",
   "regions": ["iad1"],
   "functions": {
-    "src/app/api/webhooks/whatsapp/route.ts": {
-      "maxDuration": 30
-    },
-    "src/app/api/cron/billing-renew/route.ts": {
-      "maxDuration": 60
-    }
+    "src/app/api/webhooks/whatsapp/route.ts": { "maxDuration": 30 },
+    "src/app/api/cron/billing-renew/route.ts": { "maxDuration": 60 },
+    "src/app/api/cron/send-scheduled-messages/route.ts": { "maxDuration": 60 }
   },
   "crons": [
-    {
-      "path": "/api/cron/billing-renew",
-      "schedule": "0 11 * * *"
-    }
+    { "path": "/api/cron/billing-renew", "schedule": "0 11 * * *" },
+    { "path": "/api/cron/send-scheduled-messages", "schedule": "*/5 * * * *" }
   ]
 }
