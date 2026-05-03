@@ -2,6 +2,11 @@ export interface ConversationMessage {
   role: "customer" | "assistant";
   content: string;
   timestamp: string;
+  /**
+   * True when the assistant message was sent manually by the business owner
+   * (not by the AI). Optional for backwards compatibility with existing rows.
+   */
+  manual?: boolean;
 }
 
 export interface TimeSlot {

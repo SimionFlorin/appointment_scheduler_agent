@@ -48,15 +48,23 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum ScheduledMessageStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
 model User {
-  id              String    @id @default(cuid())
-  googleId        String    @unique
-  email           String    @unique
-  name            String
-  image           String?
-  profession      Profession?
-  llmProvider     LlmProvider @default(GEMINI)
-  onboardingDone  Boolean   @default(false)
+  id                 String      @id @default(cuid())
+  googleId           String      @unique
+  email              String      @unique
+  name               String
+  image              String?
+  profession         Profession?
+  llmProvider        LlmProvider @default(GEMINI)
+  aiAutoReplyEnabled Boolean     @default(true)
+  onboardingDone     Boolean     @default(false)
 
   googleAccessToken  String?
   googleRefreshToken String?
@@ -67,20 +75,21 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  businessProfile BusinessProfile?
-  services        Service[]
-  appointments    Appointment[]
-  conversations   Conversation[]
-  whatsappConfig  WhatsAppConfig?
-  subscription    Subscription?
-  payments        Payment[]
-  paymentMethods  RevolutPaymentMethod[]
+  businessProfile   BusinessProfile?
+  services          Service[]
+  appointments      Appointment[]
+  conversations     Conversation[]
+  whatsappConfig    WhatsAppConfig?
+  subscription      Subscription?
+  payments          Payment[]
+  paymentMethods    RevolutPaymentMethod[]
+  scheduledMessages ScheduledMessage[]
 }
 
 model BusinessProfile {
-  id        String @id @default(cuid())
-  userId    String @unique
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   businessName String
   phone        String?
@@ -107,9 +116,9 @@ model BusinessProfile {
 }
 
 model Service {
-  id          String @id @default(cuid())
-  userId      String
-  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   name        String
   description String?
@@ -132,13 +141,13 @@ model WhatsAppConfig {
   provider WhatsAppProvider
 
   // Meta Cloud API fields
-  wabaId         String?
-  phoneNumberId  String?
+  wabaId          String?
+  phoneNumberId   String?
   metaAccessToken String?
 
   // Twilio fields
-  twilioAccountSid String?
-  twilioAuthToken  String?
+  twilioAccountSid  String?
+  twilioAuthToken   String?
   twilioPhoneNumber String?
 
   isActive  Boolean  @default(true)
@@ -147,11 +156,11 @@ model WhatsAppConfig {
 }
 
 model Appointment {
-  id        String            @id @default(cuid())
+  id        String  @id @default(cuid())
   userId    String
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   serviceId String
-  service   Service           @relation(fields: [serviceId], references: [id])
+  service   Service @relation(fields: [serviceId], references: [id])
 
   customerName  String
   customerPhone String
@@ -188,7 +197,7 @@ model Subscription {
   paymentMethodId String?
   paymentMethod   RevolutPaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
   nextChargeAt    DateTime?
-  failedAttempts  Int       @default(0)
+  failedAttempts  Int                   @default(0)
   planAmount      Int?
   planCurrency    String?
 
@@ -204,7 +213,7 @@ model Payment {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  revolutOrderId    String  @unique
+  revolutOrderId    String        @unique
   revolutCustomerId String?
   amount            Int
   currency          String
@@ -220,13 +229,13 @@ model Payment {
 }
 
 model RevolutPaymentMethod {
-  id                String @id @default(cuid())
-  userId            String
-  user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   revolutCustomerId String
-  revolutMethodId   String @unique
-  type              String  // "card" | "revolut_pay"
+  revolutMethodId   String  @unique
+  type              String // "card" | "revolut_pay"
   brand             String?
   last4             String?
   expMonth          Int?
@@ -243,8 +252,8 @@ model RevolutPaymentMethod {
 
 model WebhookEvent {
   id        String   @id @default(cuid())
-  source    String   // "revolut-sandbox" | "revolut-live"
-  event     String   // e.g. ORDER_COMPLETED, ORDER_PAYMENT_FAILED
+  source    String // "revolut-sandbox" | "revolut-live"
+  event     String // e.g. ORDER_COMPLETED, ORDER_PAYMENT_FAILED
   orderId   String?
   payload   Json
   createdAt DateTime @default(now())
@@ -254,15 +263,37 @@ model WebhookEvent {
   @@index([createdAt])
 }
 
+model ScheduledMessage {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  customerPhone String
+  body          String
+  scheduledFor  DateTime
+  status        ScheduledMessageStatus @default(PENDING)
+
+  sentAt   DateTime?
+  error    String?
+  attempts Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status, scheduledFor])
+  @@index([customerPhone])
+}
+
 model Conversation {
-  id        String @id @default(cuid())
-  userId    String
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   customerPhone String
   customerName  String?
-  messages      Json   @default("[]") // Array of {role, content, timestamp}
-  isTest        Boolean  @default(false)
+  messages      Json    @default("[]") // Array of {role, content, timestamp}
+  isTest        Boolean @default(false)
 
   lastMessageAt DateTime @default(now())
   createdAt     DateTime @default(now())
