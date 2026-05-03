@@ -9,6 +9,15 @@ An AI receptionist that handles appointment booking via WhatsApp, powered by Goo
 3. **Connect WhatsApp** — Meta Cloud API or Twilio
 4. **AI takes over** — customers book via WhatsApp, the AI checks your calendar and confirms appointments
 
+## Modes
+
+The app supports two complementary modes, switchable per-user from **Settings → Account → Automatic AI Replies**:
+
+- **AI receptionist (default).** Every inbound WhatsApp message triggers the AI agent, which can read your services, calendar and business hours and reply automatically. You can also still send manual or scheduled messages from the Conversations page.
+- **Manual inbox.** When AI auto-reply is disabled, inbound WhatsApp messages are still recorded in the Conversations page but **no AI / calendar / services / business-hours lookups happen** — you reply yourself, on your own time. Use the composer on the Conversations page to **Send now** or **Schedule** outbound messages.
+
+Scheduled messages are dispatched by a Vercel cron at `*/5 * * * *` (every 5 minutes). On Vercel Hobby plans cron is clamped to once per day; the per-row **Send now** button on the Conversations page is the manual override for that case.
+
 ## Tech Stack
 
 - **Framework**: Next.js 15 (App Router) + TypeScript
