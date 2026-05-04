@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { processWhatsAppMessage } from "@/lib/ai-agent";
+import { processWhatsAppMessage, storeIncomingMessage } from "@/lib/ai-agent";
 import {
   logMetaWebhookDiagnostics,
   parseMetaWebhookPayload,
@@ -120,37 +120,57 @@ async function handleMetaWebhook(request: NextRequest) {
     return NextResponse.json({ received: true }, { status: 200 });
   }
 
+  const user = await prisma.user.findUnique({
+    where: { id: config.userId },
+    select: { autoReplyEnabled: true },
+  });
+
   console.log("[WA:meta] resolved user", {
     userId: config.userId,
     provider: config.provider,
+    autoReplyEnabled: user?.autoReplyEnabled,
   });
 
   // Process each message after response — survives Vercel serverless return
   for (const msg of parsed.messages) {
-    console.log("[WA:meta] scheduling processWhatsAppMessage", {
-      userId: config.userId,
-      from: msg.from,
-      body: truncate(msg.body, 100),
-    });
-    after(async () => {
-      console.log("[WA:meta] after() running processWhatsAppMessage", {
+    if (user?.autoReplyEnabled === false) {
+      console.log("[WA:meta] auto-reply disabled, storing message only", {
         userId: config.userId,
         from: msg.from,
       });
-      try {
-        const reply = await processWhatsAppMessage(
-          config.userId,
-          msg.from,
-          msg.body
-        );
-        console.log("[WA:meta] after() processWhatsAppMessage OK", {
-          replyLength: reply.length,
-          replyPreview: truncate(reply, 160),
+      after(async () => {
+        try {
+          await storeIncomingMessage(config.userId, msg.from, msg.body);
+        } catch (err) {
+          console.error("[WA:meta] after() storeIncomingMessage FAILED", err);
+        }
+      });
+    } else {
+      console.log("[WA:meta] scheduling processWhatsAppMessage", {
+        userId: config.userId,
+        from: msg.from,
+        body: truncate(msg.body, 100),
+      });
+      after(async () => {
+        console.log("[WA:meta] after() running processWhatsAppMessage", {
+          userId: config.userId,
+          from: msg.from,
         });
-      } catch (err) {
-        console.error("[WA:meta] after() processWhatsAppMessage FAILED", err);
-      }
-    });
+        try {
+          const reply = await processWhatsAppMessage(
+            config.userId,
+            msg.from,
+            msg.body
+          );
+          console.log("[WA:meta] after() processWhatsAppMessage OK", {
+            replyLength: reply.length,
+            replyPreview: truncate(reply, 160),
+          });
+        } catch (err) {
+          console.error("[WA:meta] after() processWhatsAppMessage FAILED", err);
+        }
+      });
+    }
   }
 
   console.log("[WA:meta] returning 200 (work continues in after())");
@@ -192,23 +212,43 @@ async function handleTwilioWebhook(request: NextRequest) {
     return NextResponse.json({ received: true }, { status: 200 });
   }
 
-  console.log("[WA:twilio] resolved user", { userId: config.userId });
-  after(async () => {
-    console.log("[WA:twilio] after() running processWhatsAppMessage");
-    try {
-      const reply = await processWhatsAppMessage(
-        config.userId,
-        parsed.from,
-        parsed.body
-      );
-      console.log("[WA:twilio] after() OK", {
-        replyLength: reply.length,
-        replyPreview: truncate(reply, 160),
-      });
-    } catch (err) {
-      console.error("[WA:twilio] after() FAILED", err);
-    }
+  const twilioUser = await prisma.user.findUnique({
+    where: { id: config.userId },
+    select: { autoReplyEnabled: true },
   });
+
+  console.log("[WA:twilio] resolved user", {
+    userId: config.userId,
+    autoReplyEnabled: twilioUser?.autoReplyEnabled,
+  });
+
+  if (twilioUser?.autoReplyEnabled === false) {
+    console.log("[WA:twilio] auto-reply disabled, storing message only");
+    after(async () => {
+      try {
+        await storeIncomingMessage(config.userId, parsed.from, parsed.body);
+      } catch (err) {
+        console.error("[WA:twilio] after() storeIncomingMessage FAILED", err);
+      }
+    });
+  } else {
+    after(async () => {
+      console.log("[WA:twilio] after() running processWhatsAppMessage");
+      try {
+        const reply = await processWhatsAppMessage(
+          config.userId,
+          parsed.from,
+          parsed.body
+        );
+        console.log("[WA:twilio] after() OK", {
+          replyLength: reply.length,
+          replyPreview: truncate(reply, 160),
+        });
+      } catch (err) {
+        console.error("[WA:twilio] after() FAILED", err);
+      }
+    });
+  }
 
   // Twilio expects TwiML or empty 200
   return new Response("<Response></Response>", {
