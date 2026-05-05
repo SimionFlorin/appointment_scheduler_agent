@@ -30,6 +30,13 @@ export function SiteFooter({ className }: { className?: string }) {
           >
             Data Deletion
           </Link>
+          <span>|</span>
+          <Link
+            href="/refund-policy"
+            className="hover:text-foreground transition-colors"
+          >
+            Refund Policy
+          </Link>
         </div>
       </div>
     </footer>
