@@ -11,10 +11,12 @@ import {
   Settings,
   MessageSquare,
   MessagesSquare,
+  CreditCard,
   LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { SubscriptionBanner } from "./subscription-banner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +30,7 @@ const navItems = [
   { href: "/appointments", label: "Appointments", icon: Calendar },
   { href: "/conversations", label: "Conversations", icon: MessageSquare },
   { href: "/chat-simulator", label: "Simulator", icon: MessagesSquare },
+  { href: "/billing", label: "Billing", icon: CreditCard },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -96,6 +99,8 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
           </DropdownMenu>
         </div>
       </header>
+
+      <SubscriptionBanner />
 
       {/* Content */}
       <main className="container mx-auto px-4 py-6">{children}</main>

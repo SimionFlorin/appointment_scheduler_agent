@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 const { auth } = NextAuth(authConfig);
 
-const authRequiredPaths = ["/dashboard", "/services", "/appointments", "/conversations", "/settings", "/onboarding"];
+const authRequiredPaths = ["/dashboard", "/services", "/appointments", "/conversations", "/settings", "/onboarding", "/billing"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
@@ -15,7 +15,9 @@ export default auth((req) => {
     ) ||
     (pathname.startsWith("/api") &&
       !pathname.startsWith("/api/auth") &&
-      !pathname.startsWith("/api/webhooks"));
+      !pathname.startsWith("/api/webhooks") &&
+      !pathname.startsWith("/api/cron")
+    );
 
   if (!needsAuth) return NextResponse.next();
 
@@ -41,5 +43,7 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon\\.svg|.*\\.png$|.*\\.svg$|sitemap\\.xsl$).*)"],
+  matcher: [
+    "/((?!api/auth|_next/static|_next/image|favicon.ico|icon\\.svg|.*\\.png$|.*\\.svg$|sitemap\\.xsl$).*)",
+  ],
 };

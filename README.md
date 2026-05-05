@@ -19,6 +19,10 @@ An AI receptionist that handles appointment booking via WhatsApp, powered by Goo
 - **UI**: Tailwind CSS + shadcn/ui
 - **Deployment**: Vercel
 
+## Other messaging channels (strategy)
+
+The app is **WhatsApp-only** for conversations today. For a consolidated take on **SMS, email, Instagram, and Messenger** vs staying WhatsApp-first — including why **outbound email** (confirmations/reminders) **is** worth it and extra **chat** channels are not a short–medium-term priority — see [docs/messaging-channels-strategy.md](docs/messaging-channels-strategy.md).
+
 ## Setup
 
 ### Prerequisites

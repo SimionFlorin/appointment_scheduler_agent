@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>BookMe AI — Revenue → Cost → Profit Schema</title>
+    <style>
+      /* ─────────────────────────────────────────────────────────────
+       *  Print-targeted stylesheet. Colors mirror the canvas
+       *  light-mode tokens (#1F8A65 / #CF2D56 / neutral grays).
+       * ───────────────────────────────────────────────────────────── */
+      :root {
+        --fg: #141414;
+        --fg-muted: #4a4a4a;
+        --fg-faint: #6b6b6b;
+        --fg-subtle: #8a8a8a;
+        --stroke: #d8d8d8;
+        --stroke-soft: #ebebeb;
+        --bg-soft: #f6f6f6;
+        --bg-zebra: #fafafa;
+        --green: #1f8a65;
+        --green-soft: #e8f4ee;
+        --red: #cf2d56;
+        --info-bg: #f0f7ff;
+        --info-border: #cfe1f7;
+        --info-fg: #1d5db8;
+        --warn-fg: #c06028;
+      }
+
+      @page {
+        size: A4;
+        margin: 16mm 14mm 16mm 14mm;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        color: var(--fg);
+        font-size: 11.5px;
+        line-height: 1.5;
+        margin: 0;
+        padding: 0;
+        background: #fff;
+      }
+
+      h1 {
+        font-size: 22px;
+        font-weight: 600;
+        margin: 0 0 6px 0;
+        line-height: 1.25;
+      }
+      h2 {
+        font-size: 15px;
+        font-weight: 600;
+        margin: 22px 0 10px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--stroke);
+      }
+      h3 {
+        font-size: 12.5px;
+        font-weight: 600;
+        margin: 14px 0 6px;
+      }
+      p {
+        margin: 0 0 8px 0;
+      }
+      .muted {
+        color: var(--fg-muted);
+      }
+      .small {
+        font-size: 10.5px;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas,
+          "Liberation Mono", monospace;
+        font-size: 0.9em;
+        background: var(--bg-soft);
+        padding: 1px 4px;
+        border-radius: 3px;
+        color: var(--fg);
+      }
+      pre {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas,
+          "Liberation Mono", monospace;
+        font-size: 10.5px;
+        line-height: 1.45;
+        background: var(--bg-soft);
+        border: 1px solid var(--stroke);
+        border-radius: 6px;
+        padding: 12px;
+        margin: 0 0 8px 0;
+        overflow-x: auto;
+        white-space: pre;
+      }
+
+      /* ── Layout helpers ──────────────────────────────────────── */
+      .grid-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10px;
+      }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .keep {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      /* ── Card ───────────────────────────────────────────────── */
+      .card {
+        border: 1px solid var(--stroke);
+        border-radius: 6px;
+        padding: 10px 12px;
+      }
+      .card-header {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--fg);
+        padding-bottom: 6px;
+        margin-bottom: 8px;
+        border-bottom: 1px solid var(--stroke-soft);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .card-body p {
+        margin: 0 0 4px 0;
+      }
+      .card-body p:last-child {
+        margin-bottom: 0;
+      }
+      .pill {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--stroke);
+        color: var(--fg);
+      }
+      .pill.green {
+        color: var(--green);
+        border-color: var(--green);
+      }
+      .pill.red {
+        color: var(--red);
+        border-color: var(--red);
+      }
+      .pill.info {
+        color: var(--info-fg);
+        border-color: var(--info-border);
+      }
+      .text-green {
+        color: var(--green);
+      }
+      .text-red {
+        color: var(--red);
+      }
+      .text-green strong,
+      .text-red strong {
+        font-weight: 600;
+      }
+
+      /* ── Callout ────────────────────────────────────────────── */
+      .callout {
+        border: 1px solid var(--info-border);
+        background: var(--info-bg);
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin: 8px 0;
+      }
+      .callout-title {
+        font-weight: 600;
+        color: var(--info-fg);
+        margin-bottom: 8px;
+        font-size: 12px;
+      }
+
+      /* ── Tables ─────────────────────────────────────────────── */
+      table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        border: 1px solid var(--stroke);
+        border-radius: 6px;
+        overflow: hidden;
+        margin: 0 0 4px 0;
+        font-size: 10.5px;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 6px 9px;
+        border-bottom: 1px solid var(--stroke-soft);
+      }
+      th {
+        background: var(--bg-soft);
+        font-weight: 600;
+        font-size: 10.5px;
+        color: var(--fg);
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      td.center,
+      th.center {
+        text-align: center;
+      }
+
+      /* ── Stats ──────────────────────────────────────────────── */
+      .stat {
+        border: 1px solid var(--stroke);
+        border-radius: 6px;
+        padding: 10px 12px;
+      }
+      .stat-value {
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 1.2;
+      }
+      .stat-label {
+        font-size: 10.5px;
+        color: var(--fg-muted);
+        margin-top: 2px;
+      }
+      .stat.success .stat-value {
+        color: var(--green);
+      }
+      .stat.warning .stat-value {
+        color: var(--warn-fg);
+      }
+      .stat.info .stat-value {
+        color: var(--info-fg);
+      }
+
+      /* ── Diagram caption ───────────────────────────────────── */
+      .diagram-wrap {
+        text-align: center;
+      }
+      .diagram-wrap svg {
+        width: 100%;
+        height: auto;
+        max-height: 460px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>BookMe AI — Revenue → Cost → Profit Schema</h1>
+      <p class="muted">
+        Distilled from <code>cursor_temporary_docs/app-overview.md</code> §§3–5.
+        Only sources that are <strong>contractually committed</strong> are
+        included — speculative future revenue (§3.3) is excluded. Nothing here
+        is in production with paying Tenants today; the schema describes the
+        model the codebase is being built towards.
+      </p>
+    </header>
+
+    <!-- ─── Headline formula ───────────────────────────────────── -->
+    <section class="callout keep">
+      <div class="callout-title">
+        Absolute net profit, per Period (currently 1 calendar month)
+      </div>
+      <pre>For one billing Period:
+
+  Revenue           =  for every Tenant, take ( R1 + R2 − R3 ),  then add up all Tenants
+  Variable cost     =  for every Tenant, take ( C1 + C2 + C3 + C4 ),  then add up all Tenants
+  Fixed cost        =  C5 + C6 + C7/12 + C8 + C9
+  Acquisition cost  =  C10 + C11 + C12 + C13 + C14
+  One-off cost      =  C15 + C16 + C17 + C18 + C19
+  Labour cost       =  C20 + C21 + C22
+
+
+  NET PROFIT  =   Revenue
+              −   Variable cost
+              −   Fixed cost
+              −   Acquisition cost
+              −   One-off cost
+              −   Labour cost</pre>
+      <p class="small muted" style="margin: 0">
+        Pass-through Costs <code>P1</code> (WhatsApp messaging) and
+        <code>P2</code> (Tenant's Google Workspace) are
+        <strong>deliberately absent</strong> — they are paid by the Tenant
+        directly and never hit BookMe AI's books under today's
+        credential-paste model (see §4.7 / §9). <code>C7</code> is divided by
+        12 because the domain is billed annually but Periods are monthly.
+      </p>
+    </section>
+
+    <!-- ─── Diagram ────────────────────────────────────────────── -->
+    <h2>Diagram</h2>
+    <p class="muted">
+      Each cost group flows into the same destination — the Period's net
+      profit. Revenue is added (green); costs are subtracted (neutral).
+    </p>
+    <div class="card keep diagram-wrap">
+      <svg
+        viewBox="0 0 720 442"
+        xmlns="http://www.w3.org/2000/svg"
+        role="img"
+        aria-label="Diagram showing how each cost group is subtracted from total Revenue to give net profit for the Period."
+      >
+        <defs>
+          <marker
+            id="arrow-add"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#1f8a65" />
+          </marker>
+          <marker
+            id="arrow-sub"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#8a8a8a" />
+          </marker>
+        </defs>
+
+        <!-- Revenue (add, green) -->
+        <g>
+          <rect x="16" y="24" width="280" height="52" rx="6" fill="#fff" stroke="#1f8a65" stroke-width="1" />
+          <text x="28" y="45" font-family="-apple-system, Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#1f8a65">Revenue from Tenants</text>
+          <text x="28" y="63" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#1f8a65">R1 + R2 − R3 (summed across Tenants)</text>
+          <path d="M 296 50 C 378 50, 378 196, 460 196" stroke="#1f8a65" stroke-width="1.5" fill="none" marker-end="url(#arrow-add)" />
+          <circle cx="312" cy="50" r="10" fill="#fff" stroke="#1f8a65" stroke-width="1.5" />
+          <text x="312" y="54" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="13" font-weight="700" fill="#1f8a65">+</text>
+        </g>
+
+        <!-- Variable cost (sub, neutral) -->
+        <g>
+          <rect x="16" y="90" width="280" height="52" rx="6" fill="#fff" stroke="#d8d8d8" stroke-width="1" />
+          <text x="28" y="111" font-family="-apple-system, sans-serif" font-size="13" font-weight="600" fill="#141414">Variable cost</text>
+          <text x="28" y="129" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#4a4a4a">C1 + C2 + C3 + C4 (summed across Tenants)</text>
+          <path d="M 296 116 C 378 116, 378 211, 460 211" stroke="#8a8a8a" stroke-width="1.5" fill="none" marker-end="url(#arrow-sub)" />
+          <circle cx="312" cy="116" r="10" fill="#fff" stroke="#8a8a8a" stroke-width="1.5" />
+          <text x="312" y="120" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="13" font-weight="700" fill="#8a8a8a">−</text>
+        </g>
+
+        <!-- Fixed cost -->
+        <g>
+          <rect x="16" y="156" width="280" height="52" rx="6" fill="#fff" stroke="#d8d8d8" stroke-width="1" />
+          <text x="28" y="177" font-family="-apple-system, sans-serif" font-size="13" font-weight="600" fill="#141414">Fixed cost</text>
+          <text x="28" y="195" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#4a4a4a">C5 + C6 + C7/12 + C8 + C9</text>
+          <path d="M 296 182 C 378 182, 378 227, 460 227" stroke="#8a8a8a" stroke-width="1.5" fill="none" marker-end="url(#arrow-sub)" />
+          <circle cx="312" cy="182" r="10" fill="#fff" stroke="#8a8a8a" stroke-width="1.5" />
+          <text x="312" y="186" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="13" font-weight="700" fill="#8a8a8a">−</text>
+        </g>
+
+        <!-- Acquisition cost -->
+        <g>
+          <rect x="16" y="222" width="280" height="52" rx="6" fill="#fff" stroke="#d8d8d8" stroke-width="1" />
+          <text x="28" y="243" font-family="-apple-system, sans-serif" font-size="13" font-weight="600" fill="#141414">Acquisition cost</text>
+          <text x="28" y="261" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#4a4a4a">C10 + C11 + C12 + C13 + C14</text>
+          <path d="M 296 248 C 378 248, 378 243, 460 243" stroke="#8a8a8a" stroke-width="1.5" fill="none" marker-end="url(#arrow-sub)" />
+          <circle cx="312" cy="248" r="10" fill="#fff" stroke="#8a8a8a" stroke-width="1.5" />
+          <text x="312" y="252" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="13" font-weight="700" fill="#8a8a8a">−</text>
+        </g>
+
+        <!-- One-off cost -->
+        <g>
+          <rect x="16" y="288" width="280" height="52" rx="6" fill="#fff" stroke="#d8d8d8" stroke-width="1" />
+          <text x="28" y="309" font-family="-apple-system, sans-serif" font-size="13" font-weight="600" fill="#141414">One-off cost</text>
+          <text x="28" y="327" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#4a4a4a">C15 + C16 + C17 + C18 + C19</text>
+          <path d="M 296 314 C 378 314, 378 259, 460 259" stroke="#8a8a8a" stroke-width="1.5" fill="none" marker-end="url(#arrow-sub)" />
+          <circle cx="312" cy="314" r="10" fill="#fff" stroke="#8a8a8a" stroke-width="1.5" />
+          <text x="312" y="318" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="13" font-weight="700" fill="#8a8a8a">−</text>
+        </g>
+
+        <!-- Labour cost -->
+        <g>
+          <rect x="16" y="354" width="280" height="52" rx="6" fill="#fff" stroke="#d8d8d8" stroke-width="1" />
+          <text x="28" y="375" font-family="-apple-system, sans-serif" font-size="13" font-weight="600" fill="#141414">Labour cost</text>
+          <text x="28" y="393" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#4a4a4a">C20 + C21 + C22</text>
+          <path d="M 296 380 C 378 380, 378 275, 460 275" stroke="#8a8a8a" stroke-width="1.5" fill="none" marker-end="url(#arrow-sub)" />
+          <circle cx="312" cy="380" r="10" fill="#fff" stroke="#8a8a8a" stroke-width="1.5" />
+          <text x="312" y="384" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="13" font-weight="700" fill="#8a8a8a">−</text>
+        </g>
+
+        <!-- Destination NET PROFIT -->
+        <rect x="460" y="173" width="240" height="96" rx="8" fill="#fff" stroke="#1f8a65" stroke-width="2" />
+        <text x="580" y="211" text-anchor="middle" font-family="-apple-system, Segoe UI, sans-serif" font-size="17" font-weight="700" fill="#141414">NET PROFIT</text>
+        <text x="580" y="233" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="12" fill="#4a4a4a">for the Period</text>
+        <text x="580" y="251" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="11" fill="#6b6b6b">(currently 1 calendar month)</text>
+      </svg>
+    </div>
+
+    <!-- ─── Schema at a glance ──────────────────────────────────── -->
+    <h2>Schema at a glance</h2>
+    <div class="grid-3 keep">
+      <div class="card">
+        <div class="card-header">
+          <span>Revenue (R1 · R2 · R3)</span>
+          <span class="pill green">+</span>
+        </div>
+        <div class="card-body text-green">
+          <p><strong>R1</strong> Subscription Fee per Tier per Period (includes Token Allowance).</p>
+          <p><strong>R2</strong> Token Overage = provider unit price + Markup (cost-plus).</p>
+          <p><strong>R3</strong> Promotional discount adjustments (negative revenue).</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span>Costs (C1 – C22)</span>
+          <span class="pill red">−</span>
+        </div>
+        <div class="card-body text-red">
+          <p><strong>Variable</strong> C1–C4 — scale with Tenants &amp; traffic.</p>
+          <p><strong>Fixed</strong> C5–C9 — paid at zero Tenants.</p>
+          <p><strong>Acquisition</strong> C10–C14 — bounded by our decision.</p>
+          <p><strong>One-off</strong> C15–C19 — milestone / legal.</p>
+          <p><strong>Labour</strong> C20–C22 — paid only.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span>Profit (three views)</span>
+          <span class="pill info">=</span>
+        </div>
+        <div class="card-body">
+          <p><strong>Per-Tenant gross margin</strong> — Tenant's revenue minus the variable costs that Tenant caused.</p>
+          <p><strong>Platform contribution margin</strong> — total revenue minus all variable &amp; fixed costs.</p>
+          <p><strong>Net profit</strong> — contribution margin minus acquisition, one-off and labour.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── 1. Revenue table ────────────────────────────────────── -->
+    <h2>1 · Revenue sources</h2>
+    <p class="muted">
+      Recognised when the corresponding Revolut payment transitions to
+      <code>COMPLETED</code> (§3.1). Refunds and chargebacks are negative
+      revenue in the Period in which they are processed. Nothing in the schema
+      is in production with paying Tenants today — these rows describe the
+      contractual model the codebase is being built towards.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 40px">ID</th>
+          <th>Source</th>
+          <th>Trigger</th>
+          <th>Cadence</th>
+          <th class="center" style="width: 50px">Sign</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>R1</code></td>
+          <td>Subscription Fee for the Tenant's Tier (incl. Token Allowance)</td>
+          <td>Successful Hosted Checkout charge for the Period</td>
+          <td>Per Period · per Tenant</td>
+          <td class="center">+</td>
+        </tr>
+        <tr>
+          <td><code>R2</code></td>
+          <td>Token Overage — provider unit price + Markup</td>
+          <td>Cumulative Tokens in Period exceed the Allowance</td>
+          <td>Within / at close of Period</td>
+          <td class="center">+</td>
+        </tr>
+        <tr>
+          <td><code>R3</code></td>
+          <td>Promotional discount adjustments</td>
+          <td>Tenant applies a valid discount code at checkout</td>
+          <td>Per applicable invoice</td>
+          <td class="center">−</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ─── 2. Costs ────────────────────────────────────────────── -->
+    <h2>2 · Cost categories</h2>
+
+    <h3>2.1 Variable software costs (proportional to usage)</h3>
+    <table>
+      <thead>
+        <tr><th style="width:40px">ID</th><th>Cost</th><th>Vendor</th><th>Trigger</th><th style="width:100px">On our books?</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>C1</code></td><td>LLM inference (input + output Tokens)</td><td>Google AI · OpenAI</td><td>Each model invocation in <code>processWhatsAppMessage</code></td><td><span class="pill green">Yes</span></td></tr>
+        <tr><td><code>C2</code></td><td>Automated outbound email</td><td>Resend</td><td>Each transactional email sent automatically</td><td><span class="pill info">Future</span></td></tr>
+        <tr><td><code>C3</code></td><td>Payment processing fees</td><td>Revolut Merchant</td><td>Each successful Hosted Checkout charge</td><td><span class="pill green">Yes</span></td></tr>
+        <tr><td><code>C4</code></td><td>Refund / chargeback fees</td><td>Revolut Merchant</td><td>Each refund or chargeback</td><td><span class="pill green">Yes</span></td></tr>
+      </tbody>
+    </table>
+
+    <h3>2.2 Fixed software &amp; infrastructure (incurred at zero Tenants)</h3>
+    <table>
+      <thead><tr><th style="width:40px">ID</th><th>Cost</th><th>Vendor</th><th>Cadence</th></tr></thead>
+      <tbody>
+        <tr><td><code>C5</code></td><td>Application hosting &amp; functions</td><td>Vercel</td><td>Per-Period plan + overage</td></tr>
+        <tr><td><code>C6</code></td><td>Managed Postgres</td><td>Supabase</td><td>Per-Period plan + overage</td></tr>
+        <tr><td><code>C7</code></td><td>Domain registration &amp; DNS</td><td>Registrar</td><td>Annual</td></tr>
+        <tr><td><code>C8</code></td><td>Sender domain reputation / deliverability</td><td>Registrar + Resend</td><td>Annual + per-Period (when email ships)</td></tr>
+        <tr><td><code>C9</code></td><td>Third-party developer accounts (Google, Meta, OpenAI, Twilio, Revolut, Supabase, Vercel)</td><td>Each platform</td><td>Free today; paid above thresholds</td></tr>
+      </tbody>
+    </table>
+
+    <h3>2.3 Acquisition (none active today — bounded by our decision)</h3>
+    <table>
+      <thead><tr><th style="width:40px">ID</th><th>Cost</th><th>Vendor</th><th>Trigger</th></tr></thead>
+      <tbody>
+        <tr><td><code>C10</code></td><td>Paid social ads (incl. Click-to-WhatsApp)</td><td>Meta Ads</td><td>Per impression / click / conversion</td></tr>
+        <tr><td><code>C11</code></td><td>Paid search ads</td><td>Google Ads</td><td>Per click / conversion</td></tr>
+        <tr><td><code>C12</code></td><td>Content &amp; SEO production (paid)</td><td>Contractors</td><td>Per piece commissioned</td></tr>
+        <tr><td><code>C13</code></td><td>Sales, partnerships &amp; affiliate commissions</td><td>Partner agreements</td><td>Per signed deal / converted Tenant</td></tr>
+        <tr><td><code>C14</code></td><td>Local listings / directories (paid)</td><td>Industry directories</td><td>Per listing / renewal</td></tr>
+      </tbody>
+    </table>
+
+    <h3>2.4 One-off (recognised on payment, often amortised)</h3>
+    <table>
+      <thead><tr><th style="width:40px">ID</th><th>Cost</th><th>Vendor</th><th>Trigger</th></tr></thead>
+      <tbody>
+        <tr><td><code>C15</code></td><td>Meta Business Verification fees (where applicable)</td><td>Meta</td><td>Per submission cycle</td></tr>
+        <tr><td><code>C16</code></td><td>Google OAuth app verification fees (where applicable)</td><td>Google</td><td>Per submission cycle</td></tr>
+        <tr><td><code>C17</code></td><td>WhatsApp display-name approval (where applicable)</td><td>Meta / Twilio</td><td>Per submission</td></tr>
+        <tr><td><code>C18</code></td><td>Legal review (privacy, ToS, data deletion)</td><td>External counsel</td><td>Per material change</td></tr>
+        <tr><td><code>C19</code></td><td>Branding / design assets</td><td>Contractors</td><td>Per asset commissioned</td></tr>
+      </tbody>
+    </table>
+
+    <h3>2.5 Labour (paid only)</h3>
+    <table>
+      <thead><tr><th style="width:40px">ID</th><th>Cost</th><th>Source</th><th>Trigger</th></tr></thead>
+      <tbody>
+        <tr><td><code>C20</code></td><td>Engineering, product &amp; design</td><td>Hires / contractors / agencies</td><td>Per Period or per engagement</td></tr>
+        <tr><td><code>C21</code></td><td>Manual outbound email (human-sent)</td><td>Hires / contractors / agencies</td><td>Per email or per Period</td></tr>
+        <tr><td><code>C22</code></td><td>Customer support, success &amp; operations</td><td>Hires / contractors / agencies</td><td>Per Period or per ticket</td></tr>
+      </tbody>
+    </table>
+
+    <!-- ─── 3. Three profit views ──────────────────────────────── -->
+    <h2>3 · Three profit views (§5.1)</h2>
+    <div class="grid-3 keep">
+      <div class="card">
+        <div class="card-header">Per-Tenant gross margin</div>
+        <pre>For ONE Tenant, in one Period:
+
+GROSS MARGIN  =   ( R1 + R2 − R3 )
+              −   ( C1 + C2 + C3 + C4 )</pre>
+        <p class="small muted" style="margin: 6px 0 0 0">
+          R2 is structurally cost-plus, so every Token above the Allowance
+          contributes exactly the Markup.
+        </p>
+      </div>
+      <div class="card">
+        <div class="card-header">Platform contribution margin</div>
+        <pre>For ALL Tenants combined, in one Period:
+
+CONTRIBUTION  =   total Revenue from Tenants
+              −   total Variable cost (across Tenants)
+              −   ( C5 + C6 + C7/12 + C8 + C9 )</pre>
+        <p class="small muted" style="margin: 6px 0 0 0">
+          Per-Tenant margin can be positive while contribution margin is still
+          negative, because fixed costs are paid at zero Tenants.
+        </p>
+      </div>
+      <div class="card">
+        <div class="card-header">Net profit</div>
+        <pre>For the whole platform, in one Period:
+
+NET PROFIT  =   Contribution margin
+            −   ( C10 + C11 + C12 + C13 + C14 )    acquisition
+            −   ( C15 + C16 + C17 + C18 + C19 )    one-off (period share)
+            −   ( C20 + C21 + C22 )                labour</pre>
+        <p class="small muted" style="margin: 6px 0 0 0">
+          Steerable: pause C10–C11 and net profit rises without changing the
+          product.
+        </p>
+      </div>
+    </div>
+
+    <!-- ─── 4. Properties ──────────────────────────────────────── -->
+    <h2>4 · Properties baked into the formula</h2>
+    <div class="grid-2 keep">
+      <div class="stat success">
+        <div class="stat-value">Markup</div>
+        <div class="stat-label">R2 gross-margin contribution per overage Token</div>
+      </div>
+      <div class="stat warning">
+        <div class="stat-value">C5..C9</div>
+        <div class="stat-label">Floor that must be cleared before net profit &gt; 0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">0</div>
+        <div class="stat-label">Pass-through (P1, P2) contribution to net profit</div>
+      </div>
+      <div class="stat info">
+        <div class="stat-value">Trial</div>
+        <div class="stat-label">Consumes C1 + share of C5..C9 with R1 = 0 in that Period</div>
+      </div>
+    </div>
+
+    <!-- ─── 5. Excluded ────────────────────────────────────────── -->
+    <h2>5 · Explicitly excluded from the formula</h2>
+    <table>
+      <thead><tr><th style="width:60px">Item</th><th>Why it's not in net profit</th></tr></thead>
+      <tbody>
+        <tr><td><code>P1</code></td><td>WhatsApp messaging — Tenant pays Meta/Twilio directly under their own credentials. Migrates into C2.x only if BookMe AI becomes a Meta Solution Partner or moves to Twilio Sub-accounts (§9).</td></tr>
+        <tr><td><code>P2</code></td><td>Tenant's Google Workspace — unrelated to use of BookMe AI; a free <code>@gmail.com</code> works end-to-end (§9.3).</td></tr>
+        <tr><td>Future revenue (§3.3)</td><td>Per-channel add-ons, annual prepay, paid setup, white-label, profession packs, referrals — listed but not yet committed, so excluded from the certain schema.</td></tr>
+      </tbody>
+    </table>
+  </body>
+</html>

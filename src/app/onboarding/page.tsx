@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TimezoneSelect } from "@/components/timezone-select";
 
 type Step = "profession" | "business" | "done";
 
@@ -137,11 +138,10 @@ export default function OnboardingPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="timezone">Timezone</Label>
-                <Input
-                  id="timezone"
+                <Label>Timezone</Label>
+                <TimezoneSelect
                   value={timezone}
-                  onChange={(e) => setTimezone(e.target.value)}
+                  onChange={setTimezone}
                 />
                 <p className="text-xs text-muted-foreground">
                   Auto-detected from your browser

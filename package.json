@@ -7,13 +7,18 @@
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "webhook:create": "node --env-file=.env scripts/revolut/create-webhook.mjs",
+    "webhook:list": "node --env-file=.env scripts/revolut/list-webhooks.mjs",
+    "webhook:get": "node --env-file=.env scripts/revolut/get-webhook.mjs",
+    "webhook:delete": "node --env-file=.env scripts/revolut/delete-webhook.mjs"
   },
   "dependencies": {
     "@langchain/core": "^1.1.30",
     "@langchain/google-genai": "^2.1.24",
     "@langchain/openai": "^1.2.12",
     "@prisma/client": "^6.19.2",
+    "@revolut/checkout": "^1.1.25",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
@@ -24,6 +29,7 @@
     "next": "16.1.6",
     "next-auth": "^5.0.0-beta.30",
     "next-themes": "^0.4.6",
+    "ngrok": "^5.0.0-beta.2",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",

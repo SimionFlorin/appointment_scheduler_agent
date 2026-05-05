@@ -44,3 +44,10 @@ next-env.d.ts
 
 
 temp.text
+temp/*
+cursor_chat_exports/*
+.env*.local
+
+.cursor_temporary_docs/*
+cursor_temporary_docs/*
+

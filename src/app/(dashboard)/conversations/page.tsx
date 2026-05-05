@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { toZonedTime } from "date-fns-tz";
 import { format } from "date-fns";
 import { MessageSquare } from "lucide-react";
 
@@ -24,15 +25,22 @@ export default function ConversationsPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [timezone, setTimezone] = useState<string>("America/New_York");
 
   useEffect(() => {
-    fetch("/api/conversations")
-      .then((r) => r.json())
-      .then((data) => {
-        setConversations(data);
-        setLoading(false);
-      });
+    Promise.all([
+      fetch("/api/conversations").then((r) => r.json()),
+      fetch("/api/user/timezone").then((r) => r.json()),
+    ]).then(([data, tzData]) => {
+      setConversations(data);
+      setTimezone(tzData.timezone || "America/New_York");
+      setLoading(false);
+    });
   }, []);
+
+  function formatInBizTz(dateStr: string, fmt: string) {
+    return format(toZonedTime(new Date(dateStr), timezone), fmt);
+  }
 
   if (loading) {
     return (
@@ -88,7 +96,7 @@ export default function ConversationsPage() {
                   {conv.messages[conv.messages.length - 1]?.content || ""}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {format(new Date(conv.lastMessageAt), "MMM d, h:mm a")}
+                  {formatInBizTz(conv.lastMessageAt, "MMM d, h:mm a")}
                 </p>
               </button>
             ))
@@ -135,7 +143,7 @@ export default function ConversationsPage() {
                               : "text-muted-foreground"
                           }`}
                         >
-                          {format(new Date(msg.timestamp), "h:mm a")}
+                          {formatInBizTz(msg.timestamp, "h:mm a")}
                         </p>
                       </div>
                     </div>
