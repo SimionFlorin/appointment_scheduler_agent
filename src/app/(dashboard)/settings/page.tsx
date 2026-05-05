@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -52,6 +53,7 @@ interface WhatsAppStatus {
 }
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [waStatus, setWaStatus] = useState<WhatsAppStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,11 +62,8 @@ export default function SettingsPage() {
   const [testPhone, setTestPhone] = useState("");
   const [testSending, setTestSending] = useState(false);
 
-  // WhatsApp form
+  // WhatsApp form (Twilio manual entry only — Meta uses Embedded Signup)
   const [waProvider, setWaProvider] = useState<"META" | "TWILIO">("META");
-  const [wabaId, setWabaId] = useState("");
-  const [phoneNumberId, setPhoneNumberId] = useState("");
-  const [metaAccessToken, setMetaAccessToken] = useState("");
   const [twilioSid, setTwilioSid] = useState("");
   const [twilioToken, setTwilioToken] = useState("");
   const [twilioPhone, setTwilioPhone] = useState("");
@@ -100,16 +99,13 @@ export default function SettingsPage() {
     else toast.error("Failed to update profile");
   }
 
-  async function saveWhatsApp() {
-    const body =
-      waProvider === "META"
-        ? { provider: "META", wabaId, phoneNumberId, accessToken: metaAccessToken }
-        : {
-            provider: "TWILIO",
-            accountSid: twilioSid,
-            authToken: twilioToken,
-            phoneNumber: twilioPhone,
-          };
+  async function saveWhatsAppTwilio() {
+    const body = {
+      provider: "TWILIO",
+      accountSid: twilioSid,
+      authToken: twilioToken,
+      phoneNumber: twilioPhone,
+    };
 
     const res = await fetch("/api/whatsapp/connect", {
       method: "POST",
@@ -118,7 +114,7 @@ export default function SettingsPage() {
     });
 
     if (res.ok) {
-      toast.success("WhatsApp connected");
+      toast.success("WhatsApp connected via Twilio");
       const waData = await fetch("/api/whatsapp/connect").then((r) => r.json());
       setWaStatus(waData.config || null);
     } else {
@@ -251,8 +247,7 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle>Connect WhatsApp</CardTitle>
               <CardDescription>
-                Choose your WhatsApp provider and enter your credentials. Your
-                webhook URL is:{" "}
+                Choose your WhatsApp provider. Your webhook URL is:{" "}
                 <code className="text-xs bg-muted px-1 py-0.5 rounded">
                   {typeof window !== "undefined" ? window.location.origin : ""}/api/webhooks/whatsapp
                 </code>
@@ -278,36 +273,20 @@ export default function SettingsPage() {
 
               {waProvider === "META" ? (
                 <div className="space-y-3">
-                  <div className="space-y-2">
-                    <Label>WABA ID</Label>
-                    <Input
-                      placeholder="WhatsApp Business Account ID"
-                      value={wabaId}
-                      onChange={(e) => setWabaId(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Phone Number ID</Label>
-                    <Input
-                      placeholder="Your phone number ID from Meta"
-                      value={phoneNumberId}
-                      onChange={(e) => setPhoneNumberId(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>System User Access Token</Label>
-                    <Input
-                      type="password"
-                      placeholder="Long-lived access token"
-                      value={metaAccessToken}
-                      onChange={(e) => setMetaAccessToken(e.target.value)}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Set your webhook URL in the Meta App Dashboard under
-                    WhatsApp &gt; Configuration. Use the verify token from your
-                    environment variables.
+                  <p className="text-sm text-muted-foreground">
+                    Connect your WhatsApp Business Account through Meta&apos;s
+                    secure signup flow. You&apos;ll be able to create or select
+                    your business account and verify your phone number.
                   </p>
+                  <Button
+                    onClick={() => router.push("/settings/connect-whatsapp")}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {waStatus?.isActive && waStatus.provider === "META"
+                      ? "Reconnect with Facebook"
+                      : "Connect with Facebook"}
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -340,12 +319,14 @@ export default function SettingsPage() {
                     Set your webhook URL in Twilio Console under Messaging &gt;
                     WhatsApp Sandbox (or your approved sender).
                   </p>
+                  <Button onClick={saveWhatsAppTwilio} className="w-full">
+                    {waStatus?.isActive && waStatus.provider === "TWILIO"
+                      ? "Update"
+                      : "Connect"}{" "}
+                    Twilio
+                  </Button>
                 </div>
               )}
-
-              <Button onClick={saveWhatsApp} className="w-full">
-                {waStatus?.isActive ? "Update" : "Connect"} WhatsApp
-              </Button>
             </CardContent>
           </Card>
         </TabsContent>

@@ -131,14 +131,16 @@ model WhatsAppConfig {
   user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   provider WhatsAppProvider
 
-  // Meta Cloud API fields
-  wabaId         String?
-  phoneNumberId  String?
-  metaAccessToken String?
+  // Meta Cloud API fields (Embedded Signup + Cloud API)
+  wabaId            String?
+  phoneNumberId     String?
+  businessId        String?
+  metaAccessToken   String?  // Encrypted at rest via lib/crypto.ts
+  registrationPin   String?  // Encrypted — needed for Cloud API re-registration
 
   // Twilio fields
-  twilioAccountSid String?
-  twilioAuthToken  String?
+  twilioAccountSid  String?
+  twilioAuthToken   String?
   twilioPhoneNumber String?
 
   isActive  Boolean  @default(true)

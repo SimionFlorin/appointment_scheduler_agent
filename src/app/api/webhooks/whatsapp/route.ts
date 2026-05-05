@@ -5,6 +5,7 @@ import { processWhatsAppMessage } from "@/lib/ai-agent";
 import {
   logMetaWebhookDiagnostics,
   parseMetaWebhookPayload,
+  verifyWebhookSignature,
 } from "@/lib/whatsapp/meta-provider";
 import { parseTwilioWebhookPayload } from "@/lib/whatsapp/twilio-provider";
 
@@ -13,7 +14,6 @@ function truncate(s: string, max = 120): string {
   return t.length <= max ? t : `${t.slice(0, max)}…`;
 }
 
-// Meta webhook verification (GET)
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const mode = searchParams.get("hub.mode");
@@ -27,7 +27,6 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }
 
-// Incoming messages (POST) -- handles both Meta and Twilio
 export async function POST(request: NextRequest) {
   const contentType = request.headers.get("content-type") || "";
   console.log("[WA] POST /api/webhooks/whatsapp", {
@@ -36,7 +35,6 @@ export async function POST(request: NextRequest) {
   });
 
   try {
-    // Detect provider by content type / payload shape
     if (contentType.includes("application/json")) {
       return await handleMetaWebhook(request);
     } else if (contentType.includes("application/x-www-form-urlencoded")) {
@@ -47,16 +45,34 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unknown provider" }, { status: 400 });
   } catch (error) {
     console.error("[WA] Webhook processing error:", error);
-    // Always return 200 to prevent retries from Meta/Twilio
     return NextResponse.json({ received: true }, { status: 200 });
   }
 }
 
 async function handleMetaWebhook(request: NextRequest) {
-  const body = await request.json();
+  /**
+   * Signature verification MUST use the raw request body. Parsing to JSON
+   * and re-stringifying changes key order / whitespace and breaks the HMAC.
+   */
+  const rawBody = await request.text();
+
+  const signature = request.headers.get("x-hub-signature-256") || "";
+  const appSecret = process.env.META_APP_SECRET;
+  if (appSecret && signature) {
+    if (!verifyWebhookSignature(rawBody, signature, appSecret)) {
+      console.error("[WA:meta] HMAC signature verification failed");
+      return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
+    }
+  } else if (appSecret && !signature) {
+    console.warn(
+      "[WA:meta] No x-hub-signature-256 header — skipping verification. " +
+        "This is expected only during Meta's initial webhook verification."
+    );
+  }
+
+  const body = JSON.parse(rawBody);
   logMetaWebhookDiagnostics(body as Record<string, unknown>);
 
-  // Always acknowledge quickly
   if (body.object !== "whatsapp_business_account") {
     console.log("[WA:meta] skip: object is not whatsapp_business_account", {
       object: body.object,
@@ -64,9 +80,37 @@ async function handleMetaWebhook(request: NextRequest) {
     return NextResponse.json({ received: true }, { status: 200 });
   }
 
-   // NEW: log status updates (delivery receipts)
-   try {
-    const statuses = body?.entry?.[0]?.changes?.[0]?.value?.statuses;
+  // Route by change field
+  const entries = (body.entry as Array<Record<string, unknown>>) || [];
+  for (const entry of entries) {
+    const changes =
+      (entry.changes as Array<Record<string, unknown>>) || [];
+    for (const change of changes) {
+      const field = change.field as string;
+
+      if (field === "account_update") {
+        console.log(
+          "[WA:meta] account_update event",
+          JSON.stringify(change.value, null, 2)
+        );
+        // TODO: Handle vendor account status changes (e.g. banned, restricted)
+        continue;
+      }
+
+      if (field === "messages") {
+        await handleMessagesChange(body);
+        break;
+      }
+    }
+  }
+
+  return NextResponse.json({ received: true }, { status: 200 });
+}
+
+async function handleMessagesChange(body: Record<string, unknown>) {
+  // Log delivery receipts
+  try {
+    const statuses = (body as any)?.entry?.[0]?.changes?.[0]?.value?.statuses;
     if (Array.isArray(statuses) && statuses.length > 0) {
       for (const s of statuses) {
         console.log("[WA:meta] STATUS UPDATE", {
@@ -78,7 +122,6 @@ async function handleMetaWebhook(request: NextRequest) {
           conversation: s.conversation,
           pricing: s.pricing,
         });
-        console.log("[WA:meta] STATUS UPDATE", JSON.stringify(s, null, 2));
       }
     }
   } catch (e) {
@@ -88,9 +131,9 @@ async function handleMetaWebhook(request: NextRequest) {
   const parsed = parseMetaWebhookPayload(body);
   if (!parsed) {
     console.warn(
-      "[WA:meta] parseMetaWebhookPayload returned null — no text messages or missing phone_number_id (see [WA:meta] diagnostics above)"
+      "[WA:meta] parseMetaWebhookPayload returned null — no text messages or missing phone_number_id"
     );
-    return NextResponse.json({ received: true }, { status: 200 });
+    return;
   }
 
   console.log("[WA:meta] parsed inbound", {
@@ -103,7 +146,6 @@ async function handleMetaWebhook(request: NextRequest) {
     })),
   });
 
-  // Find the user by their WhatsApp phone number ID
   const config = await prisma.whatsAppConfig.findFirst({
     where: {
       phoneNumberId: parsed.phoneNumberId,
@@ -117,7 +159,7 @@ async function handleMetaWebhook(request: NextRequest) {
       "[WA:meta] No WhatsAppConfig for phoneNumberId (DB mismatch?)",
       parsed.phoneNumberId
     );
-    return NextResponse.json({ received: true }, { status: 200 });
+    return;
   }
 
   console.log("[WA:meta] resolved user", {
@@ -125,7 +167,6 @@ async function handleMetaWebhook(request: NextRequest) {
     provider: config.provider,
   });
 
-  // Process each message after response — survives Vercel serverless return
   for (const msg of parsed.messages) {
     console.log("[WA:meta] scheduling processWhatsAppMessage", {
       userId: config.userId,
@@ -154,7 +195,6 @@ async function handleMetaWebhook(request: NextRequest) {
   }
 
   console.log("[WA:meta] returning 200 (work continues in after())");
-  return NextResponse.json({ received: true }, { status: 200 });
 }
 
 async function handleTwilioWebhook(request: NextRequest) {
@@ -178,7 +218,6 @@ async function handleTwilioWebhook(request: NextRequest) {
     body: truncate(parsed.body, 100),
   });
 
-  // Find the user by their Twilio WhatsApp number
   const config = await prisma.whatsAppConfig.findFirst({
     where: {
       twilioPhoneNumber: parsed.to,
@@ -210,7 +249,6 @@ async function handleTwilioWebhook(request: NextRequest) {
     }
   });
 
-  // Twilio expects TwiML or empty 200
   return new Response("<Response></Response>", {
     status: 200,
     headers: { "Content-Type": "text/xml" },

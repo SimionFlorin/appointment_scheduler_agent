@@ -47,3 +47,5 @@ temp.text
 temp/*
 cursor_chat_exports/*
 .env*.local
+
+certificates

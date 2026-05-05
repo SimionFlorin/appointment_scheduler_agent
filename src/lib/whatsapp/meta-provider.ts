@@ -1,6 +1,19 @@
 import { IWhatsAppProvider, WhatsAppMessage } from "./index";
+import { decrypt } from "@/lib/crypto";
 
-const GRAPH_API_VERSION = "v21.0";
+const graphVersion = () => process.env.META_GRAPH_VERSION || "v25.0";
+
+/**
+ * Resolve the access token for a vendor. When `META_USE_SYSTEM_TOKEN=true`
+ * (dev/testing), the shared `SYSTEM_USER_ACCESS_TOKEN_WHATSAPP` env var is
+ * used instead of the per-vendor encrypted token.
+ */
+export function resolveAccessToken(encryptedOrPlain: string): string {
+  if (process.env.META_USE_SYSTEM_TOKEN === "true" && process.env.SYSTEM_USER_ACCESS_TOKEN_WHATSAPP) {
+    return process.env.SYSTEM_USER_ACCESS_TOKEN_WHATSAPP;
+  }
+  return decrypt(encryptedOrPlain);
+}
 
 export class MetaWhatsAppProvider implements IWhatsAppProvider {
   constructor(
@@ -9,12 +22,13 @@ export class MetaWhatsAppProvider implements IWhatsAppProvider {
   ) {}
 
   async sendMessage(message: WhatsAppMessage): Promise<void> {
-    const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${this.phoneNumberId}/messages`;
+    const token = resolveAccessToken(this.accessToken);
+    const url = `https://graph.facebook.com/${graphVersion()}/${this.phoneNumberId}/messages`;
 
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${this.accessToken}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -26,8 +40,10 @@ export class MetaWhatsAppProvider implements IWhatsAppProvider {
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Meta WhatsApp API error: ${error}`);
+      const error = await response.json().catch(() => response.text());
+      throw new Error(
+        `Meta WhatsApp API ${response.status}: ${typeof error === "string" ? error : JSON.stringify(error)}`
+      );
     }
   }
 }
