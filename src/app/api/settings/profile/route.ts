@@ -1,27 +1,31 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { jsonReply, maskSensitive } from "@/lib/api-log";
+
+const area = "settings:profile";
 
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonReply(area, { error: "Unauthorized" }, { status: 401 });
   }
 
   const profile = await prisma.businessProfile.findUnique({
     where: { userId: session.user.id },
   });
 
-  return NextResponse.json({ profile });
+  return jsonReply(area, { profile });
 }
 
 export async function PUT(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonReply(area, { error: "Unauthorized" }, { status: 401 });
   }
 
   const body = await request.json();
+  console.log(`[${area}] PUT request body=`, maskSensitive(body));
+
   const {
     businessName,
     phone,
@@ -88,5 +92,5 @@ export async function PUT(request: Request) {
     },
   });
 
-  return NextResponse.json({ profile });
+  return jsonReply(area, { profile });
 }
