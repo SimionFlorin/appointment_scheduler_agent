@@ -15,7 +15,7 @@ npm run dev          # starts Next.js 16 on http://localhost:3000
 
 | Service | Notes |
 |---------|-------|
-| **PostgreSQL** | Start with `pg_ctlcluster 16 main start`. The Supabase-hosted DB is used via `DATABASE_URL`/`DIRECT_URL` env vars. |
+| **PostgreSQL** | Remote Supabase-hosted DB via `DATABASE_URL`/`DIRECT_URL` env vars (no local Postgres needed). |
 | **Next.js dev server** | `npm run dev` — uses Turbopack by default in Next.js 16. |
 
 ### Environment variables
@@ -37,5 +37,7 @@ All secrets are injected as environment variables. The `.env` file must be creat
 
 - Node.js must be activated via nvm before any npm command: `source /home/ubuntu/.nvm/nvm.sh && nvm use 22`.
 - The app uses `package-lock.json` (npm), not pnpm/yarn.
+- The `.env` file must exist before running the app. Secrets are injected as shell env vars; write them to `.env` using the var names from `.env.example`.
 - Auth requires Google OAuth (sign in redirects to Google). Dashboard and chat-simulator routes return 307 redirects when unauthenticated.
 - The WhatsApp webhook verify endpoint (`GET /api/webhooks/whatsapp`) requires `hub.verify_token` matching the `WHATSAPP_VERIFY_TOKEN` env var.
+- Next.js 16 uses Turbopack by default in dev mode; no extra flag needed.
