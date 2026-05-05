@@ -73,7 +73,7 @@ The list in §3.2 is **non-exhaustive** and is expected to expand over time. Any
 
 | # | Source | Trigger | Cadence | Currency | System of record |
 |---|---|---|---|---|---|
-| **R1** | **Subscription Fee for the Tenant's Tier** (includes the Tier's Token Allowance for the Period) | Successful Revolut Hosted Checkout charge for the Period, after Trial end or any time during the Trial | Per Period, per Tenant | Tenant chooses USD or RON at checkout | `Subscription` + `Payment` tables; activated by [`activateSubscription`](../src/lib/subscription.ts) |
+| **R1** | **Subscription Fee for the Tenant's Tier** (includes the Tier's Token Allowance for the Period) | Successful Revolut Hosted Checkout charge for the Period, after Trial end or any time during the Trial | Per Period, per Tenant | Charged in USD ($25/month) | `Subscription` + `Payment` tables; activated by [`activateSubscription`](../src/lib/subscription.ts) |
 | **R2** | **Token Overage charges** — billed at the underlying LLM provider's per-Token unit price for the Tokens consumed in excess of the Tier's Token Allowance, **plus the Markup** | Tenant's cumulative Token consumption in a Period exceeds the Token Allowance for that Period | Within or at the close of the Period in which the overage occurred | Same as R1 for that Tenant | Per-Tenant Token consumption, persisted alongside `Subscription` and `Payment` *(metering is **not yet implemented** — see §7.8)* |
 | **R3** | **Promotional discount adjustments** (negative revenue) | Tenant applies a valid discount code at checkout | Per applicable invoice | Same as the discounted invoice | `Payment.discountCode`; codes defined in [`src/app/(dashboard)/billing/page.tsx`](../src/app/(dashboard)/billing/page.tsx) |
 
