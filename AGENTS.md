@@ -44,3 +44,6 @@ A `.env` file is needed in the project root. Copy `.env.example` and fill in val
 - The `postinstall` script runs `prisma generate`, so `npm install` is sufficient to regenerate the Prisma client after schema changes.
 - There are no automated test suites (no `test` script in `package.json`). Validation is done via lint, build, and manual testing.
 - The Chat Simulator at `/chat-simulator` can test the AI agent end-to-end without real WhatsApp credentials, but requires a valid `GEMINI_API_KEY`.
+- If `DATABASE_URL` / `DIRECT_URL` / `AUTH_SECRET` are set as environment variables (e.g. via Cursor secrets), they **override** values in `.env`. The dev server uses the environment variable values. Keep this in mind when generating session tokens or running `prisma db push`.
+- The subscription gate blocks access to most dashboard pages. When seeding test data, create a `Subscription` with `status: 'TRIALING'` and a future `trialEndsAt` to bypass the paywall.
+- To create a valid session token for testing authenticated API routes without real Google OAuth, use `@auth/core/jwt`'s `encode()` with the correct `AUTH_SECRET` value and salt `authjs.session-token`.
