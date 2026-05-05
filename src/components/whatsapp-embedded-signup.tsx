@@ -123,49 +123,56 @@ export function WhatsAppEmbeddedSignup({
 
     sessionInfoRef.current = null;
 
-    window.FB.login(
-      async (response) => {
-        const code = response.authResponse?.code;
-        if (!code) {
-          // No code typically means the popup was closed without finishing.
-          // The CANCEL postMessage handler above already toasts.
-          return;
-        }
-        const session = sessionInfoRef.current;
-        if (!session?.phone_number_id || !session?.waba_id) {
-          toast.error(
-            "WhatsApp signup did not return a phone number ID or WABA ID"
-          );
-          return;
-        }
+    // The FB SDK rejects async callbacks ("Expression is of type asyncfunction,
+    // not function"), so the callback below is a sync wrapper that delegates
+    // the real work to an async function via a fire-and-forget call.
+    async function handleLoginResponse(response: FbLoginResponse) {
+      const code = response.authResponse?.code;
+      if (!code) {
+        // No code typically means the popup was closed without finishing.
+        // The CANCEL postMessage handler above already toasts.
+        return;
+      }
+      const session = sessionInfoRef.current;
+      if (!session?.phone_number_id || !session?.waba_id) {
+        toast.error(
+          "WhatsApp signup did not return a phone number ID or WABA ID"
+        );
+        return;
+      }
 
-        setSubmitting(true);
-        try {
-          const res = await fetch("/api/whatsapp/embedded-signup", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              code,
-              wabaId: session.waba_id,
-              phoneNumberId: session.phone_number_id,
-            }),
-          });
-          const data = (await res.json().catch(() => ({}))) as {
-            error?: string;
-            success?: boolean;
-          };
-          if (!res.ok) {
-            toast.error(data?.error || "Failed to connect WhatsApp");
-            return;
-          }
-          toast.success("WhatsApp connected");
-          onSuccess?.();
-        } catch (err) {
-          console.error("[WA:es] connect failed", err);
-          toast.error("Network error connecting WhatsApp");
-        } finally {
-          setSubmitting(false);
+      setSubmitting(true);
+      try {
+        const res = await fetch("/api/whatsapp/embedded-signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            code,
+            wabaId: session.waba_id,
+            phoneNumberId: session.phone_number_id,
+          }),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          success?: boolean;
+        };
+        if (!res.ok) {
+          toast.error(data?.error || "Failed to connect WhatsApp");
+          return;
         }
+        toast.success("WhatsApp connected");
+        onSuccess?.();
+      } catch (err) {
+        console.error("[WA:es] connect failed", err);
+        toast.error("Network error connecting WhatsApp");
+      } finally {
+        setSubmitting(false);
+      }
+    }
+
+    window.FB.login(
+      (response) => {
+        void handleLoginResponse(response);
       },
       {
         config_id: configId,

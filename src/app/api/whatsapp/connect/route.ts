@@ -1,21 +1,25 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { jsonReply, maskSensitive } from "@/lib/api-log";
+
+const area = "WA:connect";
 
 // Save WhatsApp configuration after user completes setup
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonReply(area, { error: "Unauthorized" }, { status: 401 });
   }
 
   const body = await request.json();
+  console.log(`[${area}] POST request body=`, maskSensitive(body));
+
   const { provider, ...config } = body;
 
   if (provider === "META") {
     const { wabaId, phoneNumberId, accessToken } = config;
     if (!wabaId || !phoneNumberId || !accessToken) {
-      return NextResponse.json({ error: "Missing Meta API fields" }, { status: 400 });
+      return jsonReply(area, { error: "Missing Meta API fields" }, { status: 400 });
     }
 
     await prisma.whatsAppConfig.upsert({
@@ -38,7 +42,7 @@ export async function POST(request: Request) {
   } else if (provider === "TWILIO") {
     const { accountSid, authToken, phoneNumber } = config;
     if (!accountSid || !authToken || !phoneNumber) {
-      return NextResponse.json({ error: "Missing Twilio fields" }, { status: 400 });
+      return jsonReply(area, { error: "Missing Twilio fields" }, { status: 400 });
     }
 
     await prisma.whatsAppConfig.upsert({
@@ -59,17 +63,17 @@ export async function POST(request: Request) {
       },
     });
   } else {
-    return NextResponse.json({ error: "Invalid provider" }, { status: 400 });
+    return jsonReply(area, { error: "Invalid provider" }, { status: 400 });
   }
 
-  return NextResponse.json({ success: true });
+  return jsonReply(area, { success: true });
 }
 
 // Get current WhatsApp config status
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonReply(area, { error: "Unauthorized" }, { status: 401 });
   }
 
   const config = await prisma.whatsAppConfig.findUnique({
@@ -83,5 +87,5 @@ export async function GET() {
     },
   });
 
-  return NextResponse.json({ config });
+  return jsonReply(area, { config });
 }

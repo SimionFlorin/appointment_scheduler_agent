@@ -1,13 +1,33 @@
 import NextAuth from "next-auth";
 import { authConfig } from "@/lib/auth.config";
 import { NextResponse } from "next/server";
+import { maskSensitiveText } from "@/lib/api-log";
 
 const { auth } = NextAuth(authConfig);
 
 const authRequiredPaths = ["/dashboard", "/services", "/appointments", "/conversations", "/settings", "/onboarding", "/billing"];
 
-export default auth((req) => {
+export default auth(async (req) => {
   const { pathname } = req.nextUrl;
+
+  // Per-request log for every API hit (custom routes + next-auth's
+  // /api/auth/csrf, /api/auth/session, /api/auth/callback/*). For non-GET
+  // we clone() so we can read the body here without consuming it for the
+  // downstream handler.
+  if (pathname.startsWith("/api")) {
+    let bodySnippet = "";
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      try {
+        const text = await req.clone().text();
+        if (text) bodySnippet = ` body=${maskSensitiveText(text)}`;
+      } catch {
+        bodySnippet = " body=<unreadable>";
+      }
+    }
+    console.log(
+      `[API] ${req.method} ${pathname} auth=${req.auth ? "yes" : "no"}${bodySnippet}`
+    );
+  }
 
   const needsAuth =
     authRequiredPaths.some(
@@ -43,7 +63,11 @@ export default auth((req) => {
 });
 
 export const config = {
+  // Note: api/auth is intentionally NOT excluded so the per-request log above
+  // can capture next-auth's csrf/session/callback hits. The proxy short-
+  // circuits api/auth via the needsAuth check below, so behaviour is
+  // unchanged — only logging is added.
   matcher: [
-    "/((?!api/auth|_next/static|_next/image|favicon.ico|icon\\.svg|.*\\.png$|.*\\.svg$|sitemap\\.xsl$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon\\.svg|.*\\.png$|.*\\.svg$|sitemap\\.xsl$).*)",
   ],
 };

@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { jsonReply, maskSensitive } from "@/lib/api-log";
 
+const area = "WA:es";
 const GRAPH_API_VERSION = "v21.0";
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
@@ -40,16 +41,17 @@ function generatePin(): string {
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonReply(area, { error: "Unauthorized" }, { status: 401 });
   }
 
   const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
   const appSecret = process.env.FACEBOOK_APP_SECRET;
   if (!appId || !appSecret) {
     console.error(
-      "[WA:es] missing NEXT_PUBLIC_FACEBOOK_APP_ID or FACEBOOK_APP_SECRET"
+      `[${area}] missing NEXT_PUBLIC_FACEBOOK_APP_ID or FACEBOOK_APP_SECRET`
     );
-    return NextResponse.json(
+    return jsonReply(
+      area,
       { error: "Server is not configured for Embedded Signup" },
       { status: 500 }
     );
@@ -59,22 +61,18 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return jsonReply(area, { error: "Invalid JSON body" }, { status: 400 });
   }
+  console.log(`[${area}] POST request body=`, maskSensitive(body));
 
   const { code, wabaId, phoneNumberId } = body;
   if (!code || !wabaId || !phoneNumberId) {
-    return NextResponse.json(
+    return jsonReply(
+      area,
       { error: "Missing code, wabaId, or phoneNumberId" },
       { status: 400 }
     );
   }
-
-  console.log("[WA:es] connect start", {
-    userId: session.user.id,
-    wabaId,
-    phoneNumberId,
-  });
 
   // 1. Exchange the auth code for a long-lived business access token.
   let accessToken: string;
@@ -87,25 +85,28 @@ export async function POST(request: Request) {
     const tokenRes = await fetch(exchangeUrl.toString(), { method: "GET" });
     if (!tokenRes.ok) {
       const detail = await readMetaError(tokenRes);
-      console.error("[WA:es] token exchange failed", detail);
-      return NextResponse.json(
+      console.error(`[${area}] token exchange failed:`, detail);
+      return jsonReply(
+        area,
         { error: `Token exchange failed: ${detail}` },
         { status: 400 }
       );
     }
     const tokenData = (await tokenRes.json()) as { access_token?: string };
     if (!tokenData.access_token) {
-      console.error("[WA:es] token exchange returned no access_token", tokenData);
-      return NextResponse.json(
+      console.error(`[${area}] token exchange returned no access_token`, tokenData);
+      return jsonReply(
+        area,
         { error: "Token exchange returned no access token" },
         { status: 400 }
       );
     }
     accessToken = tokenData.access_token;
-    console.log("[WA:es] token exchange ok");
+    console.log(`[${area}] meta /oauth/access_token ok`);
   } catch (err) {
-    console.error("[WA:es] token exchange threw", err);
-    return NextResponse.json(
+    console.error(`[${area}] token exchange threw`, err);
+    return jsonReply(
+      area,
       { error: "Network error during token exchange" },
       { status: 502 }
     );
@@ -122,16 +123,18 @@ export async function POST(request: Request) {
     });
     if (!subRes.ok) {
       const detail = await readMetaError(subRes);
-      console.error("[WA:es] subscribed_apps failed", detail);
-      return NextResponse.json(
+      console.error(`[${area}] subscribed_apps failed:`, detail);
+      return jsonReply(
+        area,
         { error: `Webhook subscription failed: ${detail}` },
         { status: 400 }
       );
     }
-    console.log("[WA:es] subscribed_apps ok", { wabaId });
+    console.log(`[${area}] meta /subscribed_apps ok`, { wabaId });
   } catch (err) {
-    console.error("[WA:es] subscribed_apps threw", err);
-    return NextResponse.json(
+    console.error(`[${area}] subscribed_apps threw`, err);
+    return jsonReply(
+      area,
       { error: "Network error subscribing webhooks" },
       { status: 502 }
     );
@@ -153,14 +156,14 @@ export async function POST(request: Request) {
     if (!regRes.ok) {
       const detail = await readMetaError(regRes);
       console.warn(
-        "[WA:es] /register non-OK (continuing — number may already be registered)",
+        `[${area}] meta /register non-OK (continuing — number may already be registered):`,
         detail
       );
     } else {
-      console.log("[WA:es] /register ok", { phoneNumberId });
+      console.log(`[${area}] meta /register ok`, { phoneNumberId });
     }
   } catch (err) {
-    console.warn("[WA:es] /register threw (continuing)", err);
+    console.warn(`[${area}] /register threw (continuing)`, err);
   }
 
   // 4. Persist the connection.
@@ -183,17 +186,13 @@ export async function POST(request: Request) {
       },
     });
   } catch (err) {
-    console.error("[WA:es] DB upsert failed", err);
-    return NextResponse.json(
+    console.error(`[${area}] DB upsert failed`, err);
+    return jsonReply(
+      area,
       { error: "Failed to save WhatsApp configuration" },
       { status: 500 }
     );
   }
 
-  console.log("[WA:es] connect ok", {
-    userId: session.user.id,
-    wabaId,
-    phoneNumberId,
-  });
-  return NextResponse.json({ success: true });
+  return jsonReply(area, { success: true, wabaId, phoneNumberId });
 }
