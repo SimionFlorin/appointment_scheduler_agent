@@ -39,8 +39,8 @@ interface SubscriptionInfo {
   paidDuringTrial: boolean;
 }
 
-const VALID_DISCOUNTS: Record<string, { usd: number; ron: number }> = {
-  AQUATIQUE: { usd: 0.5, ron: 1 },
+const VALID_DISCOUNTS: Record<string, { usd: number }> = {
+  AQUATIQUE: { usd: 0.5 },
 };
 
 export default function BillingPage() {
@@ -51,7 +51,6 @@ export default function BillingPage() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [activating, setActivating] = useState(false);
-  const [currency, setCurrency] = useState<"USD" | "RON">("USD");
 
   const [discountCode, setDiscountCode] = useState("");
   const [appliedDiscount, setAppliedDiscount] = useState<string | null>(null);
@@ -118,13 +117,13 @@ export default function BillingPage() {
   function getDisplayPrice() {
     if (appliedDiscount && VALID_DISCOUNTS[appliedDiscount]) {
       const d = VALID_DISCOUNTS[appliedDiscount];
-      return currency === "USD" ? `$${d.usd}` : `${d.ron} RON`;
+      return `$${d.usd}`;
     }
-    return currency === "USD" ? "$20" : "100 RON";
+    return "$25";
   }
 
   function getOriginalPrice() {
-    return currency === "USD" ? "$20" : "100 RON";
+    return "$25";
   }
 
   async function handleCheckout() {
@@ -134,7 +133,6 @@ export default function BillingPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          currency,
           discountCode: appliedDiscount,
         }),
       });
@@ -382,24 +380,6 @@ export default function BillingPage() {
 
           {status !== "active" && (
             <>
-              {/* Currency selector */}
-              <div className="flex gap-2">
-                <Button
-                  variant={currency === "USD" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setCurrency("USD")}
-                >
-                  USD ({appliedDiscount ? `$${VALID_DISCOUNTS[appliedDiscount]?.usd}` : "$20"})
-                </Button>
-                <Button
-                  variant={currency === "RON" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setCurrency("RON")}
-                >
-                  RON ({appliedDiscount ? `${VALID_DISCOUNTS[appliedDiscount]?.ron} lei` : "100 lei"})
-                </Button>
-              </div>
-
               {/* Discount code */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5 text-sm">

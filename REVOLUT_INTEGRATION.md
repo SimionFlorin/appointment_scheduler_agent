@@ -2,7 +2,7 @@
 
 ## Overview
 
-BookMe AI now includes subscription billing powered by Revolut's Hosted Checkout Page. Business users (dentists, mechanics) get a **30-day free trial** (no card required), after which they must subscribe at **$20 USD / 100 RON per month** to continue using the platform.
+BookMe AI now includes subscription billing powered by Revolut's Hosted Checkout Page. Business users (dentists, mechanics) get a **30-day free trial** (no card required), after which they must subscribe at **$25 USD per month** to continue using the platform.
 
 ---
 
@@ -27,7 +27,7 @@ BookMe AI now includes subscription billing powered by Revolut's Hosted Checkout
 | Route | Method | Description |
 |-------|--------|-------------|
 | `/api/billing` | GET | Returns current subscription status for the authenticated user |
-| `/api/billing/checkout` | POST | Creates a Revolut order and returns the hosted checkout URL. Accepts `{ currency: "USD" | "RON" }` |
+| `/api/billing/checkout` | POST | Creates a Revolut order in USD and returns the hosted checkout URL. Accepts `{ discountCode?: string }` |
 | `/api/billing/status` | GET | Polls Revolut for latest payment status and updates subscription accordingly (fallback if webhook is delayed) |
 | `/api/webhooks/revolut` | POST | Receives Revolut webhook events (`ORDER_COMPLETED`, `ORDER_PAYMENT_FAILED`) and activates/fails subscriptions. Validates by matching `order_id` against existing Payment records. |
 
@@ -40,7 +40,7 @@ BookMe AI now includes subscription billing powered by Revolut's Hosted Checkout
 
 | File | Description |
 |------|-------------|
-| `src/app/(dashboard)/billing/page.tsx` | Full billing page — shows subscription status, plan details, currency selector (USD/RON), checkout button, and post-payment polling |
+| `src/app/(dashboard)/billing/page.tsx` | Full billing page — shows subscription status, plan details (USD), checkout button, and post-payment polling |
 | `src/components/dashboard/subscription-banner.tsx` | Dismissible banner in the dashboard header — warns when trial is ending (≤7 days) or subscription has expired |
 | `src/components/dashboard/subscription-gate.tsx` | Client-side gate that blocks access to dashboard features when subscription is expired, while allowing access to `/billing`, `/settings`, and `/onboarding` |
 
@@ -136,7 +136,7 @@ The current implementation is a **one-time payment per month**. For automatic re
 
 ```
 User clicks "Subscribe" on /billing
-  → Frontend POST /api/billing/checkout { currency: "USD" | "RON" }
+  → Frontend POST /api/billing/checkout { discountCode?: string }
   → Backend creates Revolut order via POST /api/orders
   → Backend stores Payment record (PENDING)
   → Backend returns checkout_url to frontend

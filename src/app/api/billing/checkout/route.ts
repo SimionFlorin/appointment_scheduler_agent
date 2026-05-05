@@ -8,11 +8,10 @@ import {
 } from "@/lib/revolut";
 import { getSubscriptionInfo } from "@/lib/subscription";
 
-const PRICE_USD = 2000; // $20.00 in cents
-const PRICE_RON = 10000; // 100.00 RON in bani
+const PRICE_USD = 2500; // $25.00 in cents
 
-const DISCOUNT_CODES: Record<string, { priceUSD: number; priceRON: number }> = {
-  AQUATIQUE: { priceUSD: 50, priceRON: 100 },
+const DISCOUNT_CODES: Record<string, { priceUSD: number }> = {
+  AQUATIQUE: { priceUSD: 50 },
 };
 
 export async function POST(req: Request) {
@@ -30,20 +29,17 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const currency = body.currency === "RON" ? "RON" : "USD";
+  const currency = "USD";
   const discountCode = (body.discountCode || "").trim().toUpperCase();
 
   const sandbox = shouldUseRevolutSandbox();
 
-  let amount = currency === "RON" ? PRICE_RON : PRICE_USD;
+  let amount = PRICE_USD;
   let appliedDiscount: string | null = null;
 
   if (discountCode) {
     if (DISCOUNT_CODES[discountCode]) {
-      amount =
-        currency === "RON"
-          ? DISCOUNT_CODES[discountCode].priceRON
-          : DISCOUNT_CODES[discountCode].priceUSD;
+      amount = DISCOUNT_CODES[discountCode].priceUSD;
       appliedDiscount = discountCode;
     } else {
       return NextResponse.json(

@@ -3,6 +3,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://bookmeai.app";
 const staticPages = [
   { path: "/", changefreq: "weekly", priority: "1.0" },
   { path: "/login", changefreq: "monthly", priority: "0.8" },
+  { path: "/pricing", changefreq: "monthly", priority: "0.7" },
   { path: "/privacy-policy", changefreq: "monthly", priority: "0.3" },
   { path: "/terms-of-service", changefreq: "monthly", priority: "0.3" },
   { path: "/data-deletion", changefreq: "monthly", priority: "0.3" },

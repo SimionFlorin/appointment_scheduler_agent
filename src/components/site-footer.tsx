@@ -11,6 +11,13 @@ export function SiteFooter({ className }: { className?: string }) {
         </p>
         <div className="mt-4 flex items-center justify-center gap-4">
           <Link
+            href="/pricing"
+            className="hover:text-foreground transition-colors"
+          >
+            Pricing
+          </Link>
+          <span>|</span>
+          <Link
             href="/privacy-policy"
             className="hover:text-foreground transition-colors"
           >
