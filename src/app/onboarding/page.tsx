@@ -15,8 +15,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TimezoneSelect } from "@/components/timezone-select";
+import { WhatsAppEmbeddedSignup } from "@/components/whatsapp-embedded-signup";
 
-type Step = "profession" | "business" | "done";
+type Step = "profession" | "business" | "whatsapp" | "done";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -41,7 +42,7 @@ export default function OnboardingPage() {
       });
       if (!res.ok) throw new Error("Failed to complete onboarding");
       await update({});
-      router.push("/dashboard");
+      setStep("whatsapp");
     } catch (e) {
       console.error(e);
       alert("Something went wrong. Please try again.");
@@ -62,7 +63,9 @@ export default function OnboardingPage() {
           <CardDescription>
             {step === "profession"
               ? "What type of professional are you?"
-              : "Tell us about your business"}
+              : step === "business"
+              ? "Tell us about your business"
+              : "Connect your WhatsApp number"}
           </CardDescription>
         </CardHeader>
 
@@ -100,6 +103,28 @@ export default function OnboardingPage() {
               >
                 Continue
               </Button>
+            </div>
+          )}
+
+          {step === "whatsapp" && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Click below to connect your WhatsApp Business number through
+                Meta. The popup will guide you through selecting (or creating)
+                your business portfolio, WhatsApp Business Account, and phone
+                number — no credentials to copy by hand.
+              </p>
+              <WhatsAppEmbeddedSignup
+                className="w-full"
+                onSuccess={() => router.push("/dashboard")}
+              />
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard")}
+                className="block w-full text-center text-sm text-muted-foreground underline-offset-4 hover:underline"
+              >
+                Skip for now — I&apos;ll connect WhatsApp from Settings later
+              </button>
             </div>
           )}
 

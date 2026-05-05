@@ -25,6 +25,7 @@ import {
 import { signOut } from "next-auth/react";
 import { toast } from "sonner";
 import { TimezoneSelect } from "@/components/timezone-select";
+import { WhatsAppEmbeddedSignup } from "@/components/whatsapp-embedded-signup";
 
 const DAYS = [
   "monday",
@@ -100,6 +101,11 @@ export default function SettingsPage() {
     else toast.error("Failed to update profile");
   }
 
+  async function refreshWaStatus() {
+    const waData = await fetch("/api/whatsapp/connect").then((r) => r.json());
+    setWaStatus(waData.config || null);
+  }
+
   async function saveWhatsApp() {
     const body =
       waProvider === "META"
@@ -119,8 +125,7 @@ export default function SettingsPage() {
 
     if (res.ok) {
       toast.success("WhatsApp connected");
-      const waData = await fetch("/api/whatsapp/connect").then((r) => r.json());
-      setWaStatus(waData.config || null);
+      await refreshWaStatus();
     } else {
       toast.error("Failed to connect WhatsApp");
     }
@@ -278,36 +283,61 @@ export default function SettingsPage() {
 
               {waProvider === "META" ? (
                 <div className="space-y-3">
-                  <div className="space-y-2">
-                    <Label>WABA ID</Label>
-                    <Input
-                      placeholder="WhatsApp Business Account ID"
-                      value={wabaId}
-                      onChange={(e) => setWabaId(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Phone Number ID</Label>
-                    <Input
-                      placeholder="Your phone number ID from Meta"
-                      value={phoneNumberId}
-                      onChange={(e) => setPhoneNumberId(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>System User Access Token</Label>
-                    <Input
-                      type="password"
-                      placeholder="Long-lived access token"
-                      value={metaAccessToken}
-                      onChange={(e) => setMetaAccessToken(e.target.value)}
-                    />
-                  </div>
+                  <WhatsAppEmbeddedSignup
+                    className="w-full"
+                    onSuccess={refreshWaStatus}
+                    label={
+                      waStatus?.isActive && waStatus.provider === "META"
+                        ? "Reconnect via Embedded Signup"
+                        : "Connect via Embedded Signup"
+                    }
+                  />
                   <p className="text-xs text-muted-foreground">
-                    Set your webhook URL in the Meta App Dashboard under
-                    WhatsApp &gt; Configuration. Use the verify token from your
-                    environment variables.
+                    Recommended. Meta will guide you through selecting your
+                    business portfolio, WhatsApp Business Account, and phone
+                    number — no credentials to copy by hand.
                   </p>
+
+                  <details className="rounded-md border p-3">
+                    <summary className="cursor-pointer text-sm font-medium">
+                      Advanced: Manual Configuration
+                    </summary>
+                    <div className="mt-3 space-y-3">
+                      <div className="space-y-2">
+                        <Label>WABA ID</Label>
+                        <Input
+                          placeholder="WhatsApp Business Account ID"
+                          value={wabaId}
+                          onChange={(e) => setWabaId(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Phone Number ID</Label>
+                        <Input
+                          placeholder="Your phone number ID from Meta"
+                          value={phoneNumberId}
+                          onChange={(e) => setPhoneNumberId(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>System User Access Token</Label>
+                        <Input
+                          type="password"
+                          placeholder="Long-lived access token"
+                          value={metaAccessToken}
+                          onChange={(e) => setMetaAccessToken(e.target.value)}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Set your webhook URL in the Meta App Dashboard under
+                        WhatsApp &gt; Configuration. Use the verify token from
+                        your environment variables.
+                      </p>
+                      <Button onClick={saveWhatsApp} className="w-full">
+                        {waStatus?.isActive ? "Update" : "Connect"} WhatsApp
+                      </Button>
+                    </div>
+                  </details>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -340,12 +370,11 @@ export default function SettingsPage() {
                     Set your webhook URL in Twilio Console under Messaging &gt;
                     WhatsApp Sandbox (or your approved sender).
                   </p>
+                  <Button onClick={saveWhatsApp} className="w-full">
+                    {waStatus?.isActive ? "Update" : "Connect"} WhatsApp
+                  </Button>
                 </div>
               )}
-
-              <Button onClick={saveWhatsApp} className="w-full">
-                {waStatus?.isActive ? "Update" : "Connect"} WhatsApp
-              </Button>
             </CardContent>
           </Card>
         </TabsContent>
