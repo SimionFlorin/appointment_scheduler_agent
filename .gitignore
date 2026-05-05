@@ -49,3 +49,6 @@ cursor_chat_exports/*
 .env*.local
 
 certificates
+.cursor_temporary_docs/*
+cursor_temporary_docs/*
+
