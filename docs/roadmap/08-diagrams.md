@@ -6,7 +6,39 @@ If a diagram does not render where you are looking at this, paste the fenced ```
 
 ---
 
-## 1. Parallel tracks (high-level)
+## 0. Phase 0 → Phase 1 (the gate)
+
+```mermaid
+flowchart LR
+    subgraph Phase0["Phase 0 — App dev-readiness (GATE)"]
+        Z1[Audit + dogfood plan]
+        Z2[Eng fixes P0-1..P0-12<br/>incl. taxonomy + 3 pilot verticals]
+        Z3[Meta App Review submit<br/>external queue 1-3 wks]
+        Z4[Founder dogfood on real<br/>demo Meta number, 2 weeks]
+        Z5[Live $1 charge + autopay<br/>+ dunning cycle on test tenant]
+        Z6[Friction backlog burn-down]
+        Z7{Sign-off:<br/>12 of 12 criteria green?}
+    end
+
+    Z1 --> Z2
+    Z1 --> Z3
+    Z2 --> Z4
+    Z4 --> Z6
+    Z5 --> Z6
+    Z6 --> Z7
+    Z3 --> Z7
+    Z7 -- no --> Z6
+    Z7 -- yes --> P1[Phase 1: four parallel tracks begin]
+
+    classDef gate fill:#fee2e2,stroke:#b91c1c,color:#000;
+    class Z7 gate;
+```
+
+Phase 0 fixes are listed in detail in [`00-phase-0-app-readiness.md`](./00-phase-0-app-readiness.md) §3.
+
+---
+
+## 1. Parallel tracks (Phase 1, high-level)
 
 ```mermaid
 flowchart LR
@@ -126,28 +158,33 @@ Yellow nodes are external-clock dependencies. They all start Week 0.
 
 ---
 
-## 3. 12-week Gantt
+## 3. Full Gantt — Phase 0 then Phase 1
 
 ```mermaid
 gantt
-    title BookMe AI — 12-week plan
+    title BookMe AI — Phase 0 then Phase 1
     dateFormat  YYYY-MM-DD
     axisFormat %b %d
 
-    section External-clock starts (Week 0)
-    Pilot recruitment outreach        :crit, done,  e1, 2026-05-14, 7d
-    Meta App Review submission        :crit, active, e2, 2026-05-14, 21d
-    Tax advisor consult booked        :crit, e3, 2026-05-14, 14d
-    Revolut prod + ANAF API request   :crit, e4, 2026-05-14, 14d
+    section Phase 0 — App readiness (GATE)
+    Audit + dogfood plan              :done, p0a, 2026-05-14, 3d
+    P0 eng fixes (12 items)           :crit, p0b, 2026-05-17, 21d
+    Meta App Review submission        :crit, p0meta, 2026-05-17, 21d
+    Tax advisor consult booked        :crit, p0tax, 2026-05-17, 14d
+    Founder dogfood on demo number    :crit, p0dog, 2026-05-24, 14d
+    Friction backlog burn-down        :p0fric, after p0dog, 7d
+    Phase 0 sign-off                  :milestone, p0gate, after p0fric, 0d
 
-    section Track A — Signup & pilots
-    Pilots 1-2 observed signup        :a1, after e2, 14d
+    section Phase 1, Track 1 — Signup & pilots
+    Pilot recruitment outreach        :crit, e1, after p0gate, 7d
+    Revolut prod + ANAF API request   :crit, e4, after p0gate, 14d
+    Pilots 1-2 observed signup        :a1, after e1, 14d
     Pilots 3-5 unobserved signup      :a2, after a1, 14d
     Live pilot use (all 5)            :a3, after a1, 30d
     End-of-pilot conversion calls     :a4, after a3, 7d
 
-    section Track B — Billing & taxes
-    B1 Invoice model + PDF            :b1, 2026-05-21, 14d
+    section Phase 1, Track 2 — Billing & taxes
+    B1 Invoice model + PDF            :b1, after p0gate, 14d
     B2 Country + VATIN                :b2, after b1, 10d
     B3 Tax-scheme + display           :b3, after b2, 7d
     B5 Autopay + dunning + email      :b5, after b1, 14d
@@ -155,20 +192,20 @@ gantt
     B6 Refunds + credit notes         :b6, after b4, 10d
     B7 Token-overage metering         :b7, after b1, 21d
 
-    section Track C — Vertical defaults
-    C1 Vertical taxonomy refactor     :c1, 2026-05-21, 7d
-    C2 Seed 3 pilot verticals         :c2, after c1, 7d
-    C3 Per-vertical prompts (pilot)   :c3, after c2, 7d
-    C4 Seed remaining 5 verticals     :c4, after c3, 14d
+    section Phase 1, Track 3 — Vertical defaults
+    C4 Seed remaining 5 verticals     :c4, after p0gate, 14d
+    C5 Per-vertical prompts + fields  :c5, after c4, 14d
 
-    section Track D — GTM + launch
+    section Phase 1, Track 4 — GTM + launch
     D1 Pricing v2                     :d1, after a3, 7d
     D2 Pricing page + tax UX          :d2, after b3, 7d
     D3 Outbound sales                 :d3, after d1, 14d
     D4 Public launch                  :milestone, d4, after d3, 1d
 ```
 
-`crit` rows are the critical path. If any of them slip, the launch date slips.
+`crit` rows are the critical path. **The Phase 0 sign-off milestone is the single biggest gate**; everything in Phase 1 starts from that anchor.
+
+Track 3 sub-items C1 (taxonomy refactor) + C2 (seed 3 pilot verticals) + C3 (per-vertical prompts for pilot verticals) are absorbed into Phase 0's P0-3 fix and therefore do not appear separately in the Phase 1 section above.
 
 ---
 

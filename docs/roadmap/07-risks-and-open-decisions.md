@@ -1,5 +1,7 @@
 # 07 — Risks and open decisions
 
+> Decisions and risks specific to **Phase 0** (app readiness) are listed in [`00-phase-0-app-readiness.md`](./00-phase-0-app-readiness.md) §9. The decisions and risks below are for Phase 1.
+
 The roadmap is built on assumptions. This file lists them, names what would invalidate them, and identifies the decisions we have *not yet made*. Anything here is fair game for re-discussion in our weekly planning.
 
 ---

@@ -1,6 +1,8 @@
 # Track D — Pricing, GTM, public launch
 
-**Status:** Gated on outputs of Track A (pilot data) and Track B (billing readiness). Begins meaningfully Week 6+.
+> **Gate:** doubly gated. First on [`00-phase-0-app-readiness.md`](./00-phase-0-app-readiness.md) sign-off, then on Track A pilot data + Track B billing readiness. Begins meaningfully ~Week 6 of Phase 1 (i.e. ~Week 12 from today).
+
+**Status:** Gated on outputs of Track A (pilot data) and Track B (billing readiness).
 
 **Goal:** A repeatable, accountable, paid-acquisition or outbound-sales motion that brings new paying tenants into BookMe AI without us being on every call.
 

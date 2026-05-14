@@ -1,6 +1,8 @@
 # Track A — WhatsApp signup validation + free pilots
 
-**Status:** External-clock-blocked. Must start Week 0.
+> **Gate:** this track only starts after [`00-phase-0-app-readiness.md`](./00-phase-0-app-readiness.md) is signed off. We are not in pilot mode yet. The only Phase-0-overlapping pieces are external-clock starters (Meta App Review submission, pilot warm-intro conversations) — see §1 below.
+
+**Status:** External-clock-blocked. Begins after Phase 0 sign-off; external starters begin during Phase 0.
 
 **Goal:** Prove that a non-technical tenant (a barber, a nail tech, a vet) can connect their WhatsApp Business number and start receiving AI-handled bookings **without us on a call**, and prove that the product is useful enough that the pilot wants to pay at the end.
 

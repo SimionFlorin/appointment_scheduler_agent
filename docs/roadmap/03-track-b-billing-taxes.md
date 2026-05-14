@@ -1,6 +1,8 @@
 # Track B — Billing hardening, VAT/sales tax, invoicing, dunning
 
-**Status:** Internal dev work. One external input (tax advisor consult) must be booked Week 0.
+> **Gate:** the engineering work in this track starts after [`00-phase-0-app-readiness.md`](./00-phase-0-app-readiness.md) is signed off. The tax-advisor consult (the external-clock starter) is booked during Phase 0 because its calendar time is outside our control.
+
+**Status:** Internal dev work. One external input (tax advisor consult) must be booked during Phase 0.
 
 **Goal:** By Week 10, BookMe AI can legally and automatically charge a Romanian VAT-registered business, a German non-VAT-registered consumer, and a US LLC, generate a correct invoice for each, file the Romanian invoice with ANAF e-Factura, and retry a failed charge without a human in the loop.
 

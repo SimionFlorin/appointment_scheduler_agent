@@ -1,5 +1,9 @@
 # 01 — Parallel tracks: how the work interlocks
 
+> **Gate:** the four tracks described here do **not** begin until [`00-phase-0-app-readiness.md`](./00-phase-0-app-readiness.md) is signed off. Until Phase 0 sign-off we have not proven the product works end-to-end and we are not ready to put a pilot or a paying tenant on it.
+>
+> The only exceptions are external-clock starters (Meta App Review, tax-advisor consult booking, pilot warm-intro conversations) which begin **during Phase 0** because their queues are the slowest thing in the roadmap.
+
 This document answers one question: **given limited engineering time, in what order do we start things so we are blocked the least amount of time?**
 
 The answer is "start anything with external dependencies first, even if rough, because *their* clock starts the moment we contact them, not the moment we are ready."

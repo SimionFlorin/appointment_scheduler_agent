@@ -1,6 +1,8 @@
 # Track C — Vertical defaults
 
-**Status:** Internal dev. Small, continuous, fills the gaps between A and B sprints.
+> **Partial Phase-0 overlap:** the vertical taxonomy refactor + the 3 pilot verticals (barber, nails, auto repair) ship **inside Phase 0** (as fix P0-3 in [`00-phase-0-app-readiness.md`](./00-phase-0-app-readiness.md) §3) because dogfooding "as a barber" requires the barber vertical to exist. The remaining 5 priority verticals + per-vertical prompts + customer fields ship in Phase 1.
+
+**Status:** Internal dev. Small, continuous. Partial in Phase 0, remainder in Phase 1.
 
 **Goal:** A tenant in any of the 8 "Priority 1" verticals can pick their vertical at onboarding and immediately have a sensible service catalogue, business-hour defaults, AI behaviour, and reminder copy — *with no further configuration required to make their first booking work*.
 

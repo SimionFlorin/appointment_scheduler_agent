@@ -1,6 +1,8 @@
 # 06 — Pilot playbook
 
-This is the operating manual for running the 5 free pilots referenced in [`02-track-a-whatsapp-signup-pilots.md`](./02-track-a-whatsapp-signup-pilots.md). It exists as a separate file because it is the doc the founder will open most often during Weeks 0–8.
+> **Gate:** **do not start pilot outreach** until [`00-phase-0-app-readiness.md`](./00-phase-0-app-readiness.md) is signed off. The product must be demonstrated to work end-to-end by the founders themselves first. Pilots are friendly, but not infinitely friendly — putting them on a broken flow burns reference customers.
+
+This is the operating manual for running the 5 free pilots referenced in [`02-track-a-whatsapp-signup-pilots.md`](./02-track-a-whatsapp-signup-pilots.md). It exists as a separate file because it is the doc the founder will open most often during the pilot weeks.
 
 ---
 
