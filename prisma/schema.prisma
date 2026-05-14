@@ -135,6 +135,7 @@ model WhatsAppConfig {
   wabaId         String?
   phoneNumberId  String?
   metaAccessToken String?
+  registerPin    String?
 
   // Twilio fields
   twilioAccountSid String?

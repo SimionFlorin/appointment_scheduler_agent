@@ -143,8 +143,9 @@ export async function POST(request: Request) {
   // 3. Register the phone number on WhatsApp's network. If it's already
   //    registered Meta returns a 400 we can safely ignore — the same flow is
   //    documented in whatsapp-error-131031-troubleshooting.md.
+  const pin = generatePin();
   try {
-    const pin = generatePin();
+    console.log(`[${area}] registering phone with PIN`, { phoneNumberId, pin });
     const regRes = await fetch(`${GRAPH_BASE}/${phoneNumberId}/register`, {
       method: "POST",
       headers: {
@@ -166,7 +167,7 @@ export async function POST(request: Request) {
     console.warn(`[${area}] /register threw (continuing)`, err);
   }
 
-  // 4. Persist the connection.
+  // 4. Persist the connection (including the registration PIN).
   try {
     await prisma.whatsAppConfig.upsert({
       where: { userId: session.user.id },
@@ -175,6 +176,7 @@ export async function POST(request: Request) {
         wabaId,
         phoneNumberId,
         metaAccessToken: accessToken,
+        registerPin: pin,
         isActive: true,
       },
       create: {
@@ -183,6 +185,7 @@ export async function POST(request: Request) {
         wabaId,
         phoneNumberId,
         metaAccessToken: accessToken,
+        registerPin: pin,
       },
     });
   } catch (err) {
