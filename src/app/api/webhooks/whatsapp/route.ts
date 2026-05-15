@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { processWhatsAppMessage } from "@/lib/ai-agent";
+import { getWhatsAppProvider } from "@/lib/whatsapp";
 import {
   logMetaWebhookDiagnostics,
   parseMetaWebhookPayload,
@@ -137,6 +138,23 @@ async function handleMetaWebhook(request: NextRequest) {
         userId: config.userId,
         from: msg.from,
       });
+
+      // Show the "..." typing indicator before invoking the agent so the
+      // customer gets immediate visual feedback while the LLM thinks.
+      // Non-fatal: a failure here must never block the actual reply.
+      try {
+        const provider = getWhatsAppProvider(config.provider, {
+          phoneNumberId: config.phoneNumberId || "",
+          metaAccessToken: config.metaAccessToken || "",
+          twilioAccountSid: config.twilioAccountSid || "",
+          twilioAuthToken: config.twilioAuthToken || "",
+          twilioPhoneNumber: config.twilioPhoneNumber || "",
+        });
+        await provider.sendTypingIndicator(msg.id);
+      } catch (err) {
+        console.warn("[WA:meta] sendTypingIndicator failed (non-fatal)", err);
+      }
+
       try {
         const reply = await processWhatsAppMessage(
           config.userId,

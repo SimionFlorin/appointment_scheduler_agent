@@ -19,6 +19,10 @@ export class TwilioWhatsAppProvider implements IWhatsAppProvider {
       to: `whatsapp:${message.to}`,
     });
   }
+
+  // Twilio's WhatsApp API does not expose typing indicators. No-op to satisfy
+  // the IWhatsAppProvider contract so callers don't have to feature-detect.
+  async sendTypingIndicator(_inboundMessageId: string): Promise<void> {}
 }
 
 export function parseTwilioWebhookPayload(body: Record<string, string>): {
