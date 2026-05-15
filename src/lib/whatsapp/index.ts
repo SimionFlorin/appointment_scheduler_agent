@@ -14,6 +14,13 @@ export interface IncomingWhatsAppMessage {
 
 export interface IWhatsAppProvider {
   sendMessage(message: WhatsAppMessage): Promise<void>;
+  /**
+   * Show the "three dots" typing indicator to the customer for the given
+   * inbound message. On Meta this also marks the message as read. Providers
+   * that do not support typing indicators (e.g. Twilio) MUST implement this
+   * as a no-op rather than throwing — callers treat all providers uniformly.
+   */
+  sendTypingIndicator(inboundMessageId: string): Promise<void>;
 }
 
 export function getWhatsAppProvider(

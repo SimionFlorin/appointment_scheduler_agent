@@ -8,15 +8,21 @@ export class MetaWhatsAppProvider implements IWhatsAppProvider {
     private accessToken: string
   ) {}
 
-  async sendMessage(message: WhatsAppMessage): Promise<void> {
-    const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${this.phoneNumberId}/messages`;
+  private messagesUrl(): string {
+    return `https://graph.facebook.com/${GRAPH_API_VERSION}/${this.phoneNumberId}/messages`;
+  }
 
-    const response = await fetch(url, {
+  private authHeaders(): Record<string, string> {
+    return {
+      Authorization: `Bearer ${this.accessToken}`,
+      "Content-Type": "application/json",
+    };
+  }
+
+  async sendMessage(message: WhatsAppMessage): Promise<void> {
+    const response = await fetch(this.messagesUrl(), {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-        "Content-Type": "application/json",
-      },
+      headers: this.authHeaders(),
       body: JSON.stringify({
         messaging_product: "whatsapp",
         to: message.to,
@@ -28,6 +34,28 @@ export class MetaWhatsAppProvider implements IWhatsAppProvider {
     if (!response.ok) {
       const error = await response.text();
       throw new Error(`Meta WhatsApp API error: ${error}`);
+    }
+  }
+
+  async sendTypingIndicator(inboundMessageId: string): Promise<void> {
+    // Single call that both marks the inbound message as read AND shows the
+    // animated "..." indicator to the customer for up to ~25s (auto-dismissed
+    // when the outbound reply lands, whichever comes first).
+    // Docs: https://developers.facebook.com/docs/whatsapp/cloud-api/typing-indicators
+    const response = await fetch(this.messagesUrl(), {
+      method: "POST",
+      headers: this.authHeaders(),
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        status: "read",
+        message_id: inboundMessageId,
+        typing_indicator: { type: "text" },
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Meta WhatsApp typing indicator error: ${error}`);
     }
   }
 }
